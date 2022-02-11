@@ -57,6 +57,7 @@ from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.utils import common
+import gym_gibson
 
 
 flags.DEFINE_string(
@@ -73,12 +74,12 @@ flags.DEFINE_integer(
 flags.DEFINE_integer("num_epochs", 25, "Number of epochs for computing policy updates.")
 flags.DEFINE_integer(
     "collect_episodes_per_iteration",
-    30,
+    1,
     "The number of episodes to take in the environment before "
     "each update. This is the total across all parallel "
     "environments.",
 )
-flags.DEFINE_integer("num_eval_episodes", 30, "The number of episodes to run eval on.")
+flags.DEFINE_integer("num_eval_episodes", 5, "The number of episodes to run eval on.")
 flags.DEFINE_boolean("use_rnns", False, "If true, use RNN for policy and value function.")
 FLAGS = flags.FLAGS
 
@@ -87,7 +88,7 @@ FLAGS = flags.FLAGS
 def train_eval(
     root_dir,
     env_name="HalfCheetah-v2",
-    env_load_fn=suite_gym.load,
+    env_load_fn=gym_gibson.load,
     random_seed=None,
     # TODO(b/127576522): rename to policy_fc_layers.
     actor_fc_layers=(200, 100),
@@ -114,6 +115,11 @@ def train_eval(
     use_tf_functions=True,
     debug_summaries=False,
     summarize_grads_and_vars=False,
+    # Gibson specific
+    scene_id=None,
+    train_env_mode="headless",
+    eval_env_mode="headless",
+    gpu_g=0,
 ):
     """A simple train and eval for PPO."""
     if root_dir is None:
@@ -141,10 +147,13 @@ def train_eval(
     with tf.compat.v2.summary.record_if(lambda: tf.math.equal(global_step % summary_interval, 0)):
         if random_seed is not None:
             tf.compat.v1.set_random_seed(random_seed)
-        eval_tf_env = tf_py_environment.TFPyEnvironment(env_load_fn(env_name))
+        eval_tf_env = tf_py_environment.TFPyEnvironment(
+            env_load_fn(model_id=scene_id, env_mode=eval_env_mode, device_idx=gpu_g)
+        )
         tf_env = tf_py_environment.TFPyEnvironment(
             parallel_py_environment.ParallelPyEnvironment(
-                [lambda: env_load_fn(env_name)] * num_parallel_environments
+                [lambda: env_load_fn(model_id=scene_id, env_mode=train_env_mode, device_idx=gpu_g)]
+                * num_parallel_environments
             )
         )
         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
@@ -276,13 +285,14 @@ def train_eval(
             if global_step_val % 200:
                 import imageio
                 import numpy as np
-                print('Specs!!!!!!\n', tf_env.observation_spec())
+
+                print("Specs!!!!!!\n", tf_env.observation_spec())
                 print("- - - end of specs - - - -")
-                video_filename = 'ppo_halfcheetah.mp4'
+                video_filename = "ppo_halfcheetah.mp4"
                 time_step = eval_tf_env.reset()
                 with imageio.get_writer(video_filename, fps=60) as video:
                     video.append_data(np.array(eval_tf_env.render()[0, :, :]))
-                    for x in range(1,1000):
+                    for x in range(1, 1000):
                         action = eval_policy.action(time_step)
                         time_step = eval_tf_env.step(action.action)
                         video.append_data(np.array(eval_tf_env.render()[0, :, :]))

@@ -1,6 +1,6 @@
 # scene
-scene: gibson
-scene_id: Rs
+scene: gibson # = initiates StaticIndoorScene
+scene_id: Rs # = Name of scene, passed to the constructor of above class ^
 build_graph: true
 load_texture: true
 pybullet_load_texture: true
@@ -14,9 +14,17 @@ texture_randomization_freq: null
 object_randomization_freq: null
 
 # robot
-robot: Turtlebot
-is_discrete: false
-velocity: 1.0
+robot:
+  name: Turtlebot
+  action_type: continuous
+  action_normalize: true
+  base_name: null
+  scale: 1.0
+  self_collision: false
+  rendering_params: null
+  controller_config:
+    base:
+      name: DifferentialDriveController
 
 # task
 task: go_to_object
@@ -52,8 +60,8 @@ output: [task_obs, rgb]
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
 fisheye: false
-image_width: 160
-image_height: 120
+image_width: 640
+image_height: 480
 vertical_fov: 45
 # depth
 depth_low: 0.8
@@ -74,5 +82,5 @@ depth_noise_rate: 0.0
 scan_noise_rate: 0.0
 
 # visual objects
-visible_target: false
+visible_target: true
 visible_path: false

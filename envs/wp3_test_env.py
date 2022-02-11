@@ -30,7 +30,7 @@ from igibson.utils.constants import MAX_CLASS_COUNT, MAX_INSTANCE_COUNT
 from igibson.utils.utils import quatToXYZW
 
 
-class iGibsonEnv(BaseEnv):
+class Wp3TestEnv(BaseEnv):
     """
     iGibson Environment (OpenAI Gym interface).
     """
@@ -60,7 +60,7 @@ class iGibsonEnv(BaseEnv):
         :param automatic_reset: whether to automatic reset after an episode finishes
         :param use_pb_gui: concurrently display the interactive pybullet gui (for debugging)
         """
-        super(iGibsonEnv, self).__init__(
+        super(Wp3TestEnv, self).__init__(
             config_file=config_file,
             scene_id=scene_id,
             mode=mode,
@@ -258,7 +258,7 @@ class iGibsonEnv(BaseEnv):
         """
         Load environment.
         """
-        super(iGibsonEnv, self).load()
+        super(Wp3TestEnv, self).load()
         self.load_task_setup()
         self.load_observation_space()
         self.load_action_space()
@@ -516,7 +516,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    env = iGibsonEnv(
+    env = Wp3TestEnv(
         config_file=args.config,
         mode=args.mode,
         action_timestep=1.0 / 10.0,

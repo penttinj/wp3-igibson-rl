@@ -1,2 +1,4 @@
 .directory
 .vscode
+__pychache__/
+results/

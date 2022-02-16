@@ -1,4 +1,6 @@
 from envs.wp3_test_env import Wp3TestEnv
 import gym_gibson
+import tensorflow as tf
 
-gym_gibson.load("/home/johan/Projects/WP3/tf2/configs/go_to_object.yaml", env_mode="gui_interactive")
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+print('optimizer=', optimizer)

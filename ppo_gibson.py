@@ -20,9 +20,8 @@ To run:
 ```bash
 tensorboard --logdir $PWD/results/gibson/ --port 2223 &
 
-python ppo_gibson.py \
-  --root_dir=$PWD/results/gibson/ \
-  --logtostderr
+python ppo_gibson.py --config_file=configs/go_to_object.yaml --root_dir=results/1
+
 ```
 """
 
@@ -31,6 +30,7 @@ from __future__ import division
 from __future__ import print_function
 
 import functools
+from json import encoder
 import os
 import time
 
@@ -44,8 +44,6 @@ import tensorflow as tf  # pylint: disable=g-explicit-tensorflow-version-import
 from tf_agents.agents.ppo import ppo_clip_agent
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import parallel_py_environment
-from tf_agents.environments import suite_mujoco
-from tf_agents.environments import suite_gym
 from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
@@ -57,6 +55,7 @@ from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.utils import common
+from tf_agents.networks.utils import mlp_layers
 import gym_gibson
 
 
@@ -65,9 +64,8 @@ flags.DEFINE_string(
     os.getenv("TEST_UNDECLARED_OUTPUTS_DIR"),
     "Root directory for writing logs/summaries/checkpoints.",
 )
-flags.DEFINE_string("env_name", "HalfCheetah-v2", "Name of an environment")
 flags.DEFINE_integer("replay_buffer_capacity", 1001, "Replay buffer capacity per env.")
-flags.DEFINE_integer("num_parallel_environments", 30, "Number of environments to run in parallel")
+flags.DEFINE_integer("num_parallel_environments", 3, "Number of environments to run in parallel")
 flags.DEFINE_integer(
     "num_environment_steps", 25000000, "Number of environment steps to run before finishing."
 )
@@ -81,13 +79,26 @@ flags.DEFINE_integer(
 )
 flags.DEFINE_integer("num_eval_episodes", 5, "The number of episodes to run eval on.")
 flags.DEFINE_boolean("use_rnns", False, "If true, use RNN for policy and value function.")
+flags.DEFINE_string("config_file", None, "Gibson config file for the experiment.")
+flags.DEFINE_string(
+    "train_env_mode",
+    "headless",
+    "Simulator rendering mode during training. \
+    Values: headless, headless_tensor, gui_interactive, gui_non_interactive, vr",
+)
+flags.DEFINE_string(
+    "eval_env_mode",
+    "headless",
+    "Simulator rendering mode during evaluation. \
+    Values: headless, headless_tensor, gui_interactive, gui_non_interactive, vr",
+)
+
 FLAGS = flags.FLAGS
 
 
 @gin.configurable
 def train_eval(
     root_dir,
-    env_name="HalfCheetah-v2",
     env_load_fn=gym_gibson.load,
     random_seed=None,
     # TODO(b/127576522): rename to policy_fc_layers.
@@ -97,8 +108,8 @@ def train_eval(
     lstm_size=(20,),
     # Params for collect
     num_environment_steps=25000000,
-    collect_episodes_per_iteration=30,
-    num_parallel_environments=30,
+    collect_episodes_per_iteration=1,
+    num_parallel_environments=5,
     replay_buffer_capacity=1001,  # Per-environment
     # Params for train
     num_epochs=25,
@@ -116,12 +127,17 @@ def train_eval(
     debug_summaries=False,
     summarize_grads_and_vars=False,
     # Gibson specific
+    config_file=None,
     scene_id=None,
     train_env_mode="headless",
     eval_env_mode="headless",
     gpu_g=0,
+    conv_2d_layer_params=[(32, (8, 8), 4), (64, (4, 4), 2), (64, (3, 3), 2)],
+    encoder_fc_layers=[256],
+    conv_1d_layer_params=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
 ):
     """A simple train and eval for PPO."""
+    print("kaibi: init:", f"{train_env_mode=}", f"{eval_env_mode=}")
     if root_dir is None:
         raise AttributeError("train_eval requires a root_dir.")
 
@@ -148,42 +164,98 @@ def train_eval(
         if random_seed is not None:
             tf.compat.v1.set_random_seed(random_seed)
         eval_tf_env = tf_py_environment.TFPyEnvironment(
-            env_load_fn(model_id=scene_id, env_mode=eval_env_mode, device_idx=gpu_g)
-        )
-        tf_env = tf_py_environment.TFPyEnvironment(
             parallel_py_environment.ParallelPyEnvironment(
-                [lambda: env_load_fn(model_id=scene_id, env_mode=train_env_mode, device_idx=gpu_g)]
-                * num_parallel_environments
+                [
+                    lambda: env_load_fn(
+                        config_file=config_file,
+                        model_id=scene_id,
+                        env_mode=eval_env_mode,
+                        device_idx=gpu_g,
+                    )
+                ]
             )
         )
-        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
+        print("kaibi after eval_tf_env")
 
-        if use_rnns:
-            actor_net = actor_distribution_rnn_network.ActorDistributionRnnNetwork(
-                tf_env.observation_spec(),
-                tf_env.action_spec(),
-                input_fc_layer_params=actor_fc_layers,
-                output_fc_layer_params=None,
-                lstm_size=lstm_size,
+        tf_py_env = [
+            lambda: env_load_fn(
+                config_file=config_file,
+                model_id=scene_id,
+                env_mode=train_env_mode,
+                device_idx=gpu_g,
             )
-            value_net = value_rnn_network.ValueRnnNetwork(
-                tf_env.observation_spec(),
-                input_fc_layer_params=value_fc_layers,
-                output_fc_layer_params=None,
+        ] * num_parallel_environments
+        tf_env = tf_py_environment.TFPyEnvironment(
+            parallel_py_environment.ParallelPyEnvironment(tf_py_env)
+        )
+        print("kaibi after tf_env")
+
+        obs_spec = tf_env.time_step_spec().observation
+        glorot_uniform_initializer = tf.keras.initializers.glorot_uniform()
+        preprocessing_layers = {}
+
+        if "rgb" in obs_spec:
+            preprocessing_layers["rgb"] = tf.keras.Sequential(
+                mlp_layers(
+                    conv_layer_params=conv_2d_layer_params,
+                    fc_layer_params=encoder_fc_layers,
+                    kernel_initializer=glorot_uniform_initializer,
+                )
             )
+
+        if "depth" in obs_spec:
+            preprocessing_layers["depth"] = tf.keras.Sequential(
+                mlp_layers(
+                    conv_layer_params=conv_2d_layer_params,
+                    fc_layer_params=encoder_fc_layers,
+                    kernel_initializer=glorot_uniform_initializer,
+                )
+            )
+
+        if "scan" in obs_spec:
+            preprocessing_layers["scan"] = tf.keras.Sequential(
+                mlp_layers(
+                    # conv_layer_params=conv_1d_layer_params, # Enable later when implemented keras conv1d
+                    fc_layer_params=encoder_fc_layers,
+                    kernel_initializer=glorot_uniform_initializer,
+                )
+            )
+
+        if "task_obs" in obs_spec:
+            preprocessing_layers["task_obs"] = tf.keras.Sequential(
+                mlp_layers(
+                    fc_layer_params=encoder_fc_layers,
+                    kernel_initializer=glorot_uniform_initializer,
+                )
+            )
+
+        if len(preprocessing_layers) <= 1:
+            preprocessing_combiner = None
         else:
-            actor_net = actor_distribution_network.ActorDistributionNetwork(
-                tf_env.observation_spec(),
-                tf_env.action_spec(),
-                fc_layer_params=actor_fc_layers,
-                activation_fn=tf.keras.activations.tanh,
-            )
-            value_net = value_network.ValueNetwork(
-                tf_env.observation_spec(),
-                fc_layer_params=value_fc_layers,
-                activation_fn=tf.keras.activations.tanh,
-            )
+            preprocessing_combiner = tf.keras.layers.Concatenate(axis=-1)
 
+        # optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate) # Old implement
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        print("kaibi after optimizer=...")
+        
+        actor_net = actor_distribution_network.ActorDistributionNetwork(
+            tf_env.observation_spec(),
+            tf_env.action_spec(),
+            fc_layer_params=actor_fc_layers,
+            activation_fn=tf.keras.activations.tanh,
+            preprocessing_layers=preprocessing_layers,
+            preprocessing_combiner=preprocessing_combiner,
+            kernel_initializer=glorot_uniform_initializer,
+        )
+        value_net = value_network.ValueNetwork(
+            tf_env.observation_spec(),
+            fc_layer_params=value_fc_layers,
+            activation_fn=tf.keras.activations.tanh,
+            preprocessing_layers=preprocessing_layers,
+            preprocessing_combiner=preprocessing_combiner,
+            kernel_initializer=glorot_uniform_initializer,
+        )
+        print("kaibi after actor and value net")
         tf_agent = ppo_clip_agent.PPOClipAgent(
             tf_env.time_step_spec(),
             tf_env.action_spec(),
@@ -288,7 +360,7 @@ def train_eval(
 
                 print("Specs!!!!!!\n", tf_env.observation_spec())
                 print("- - - end of specs - - - -")
-                video_filename = "ppo_halfcheetah.mp4"
+                video_filename = "ppo_gibson.mp4"
                 time_step = eval_tf_env.reset()
                 with imageio.get_writer(video_filename, fps=60) as video:
                     video.append_data(np.array(eval_tf_env.render()[0, :, :]))
@@ -338,7 +410,6 @@ def main(_):
     tf.compat.v1.enable_v2_behavior()
     train_eval(
         FLAGS.root_dir,
-        env_name=FLAGS.env_name,
         use_rnns=FLAGS.use_rnns,
         num_environment_steps=FLAGS.num_environment_steps,
         collect_episodes_per_iteration=FLAGS.collect_episodes_per_iteration,
@@ -346,10 +417,14 @@ def main(_):
         replay_buffer_capacity=FLAGS.replay_buffer_capacity,
         num_epochs=FLAGS.num_epochs,
         num_eval_episodes=FLAGS.num_eval_episodes,
+        config_file=FLAGS.config_file,
+        train_env_mode=FLAGS.train_env_mode,
+        eval_env_mode=FLAGS.eval_env_mode,
     )
 
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("root_dir")
+    flags.mark_flag_as_required("config_file")
     multiprocessing.handle_main(functools.partial(app.run, main))
 

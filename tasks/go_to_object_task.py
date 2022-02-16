@@ -47,7 +47,7 @@ class GoToObjectTask(BaseTask):
         self.dist_tol = self.termination_conditions[-1].dist_tol
 
         self.goal_object = self.load_goal_object(
-            env, "003_cracker_box", [[-1, -1], [1, 1]]
+            env, "003_cracker_box", [[-0.3, -0.3], [0.3, 0.3]] # [[-1, -1], [1, 1]]
         )  # TODO: Make yaml config property for area and object args
 
         self.visible_target = self.config.get("visible_target", False)
@@ -148,21 +148,21 @@ class GoToObjectTask(BaseTask):
         elif self.reward_type == "geodesic":
             return self.get_geodesic_potential(env)
 
-    def load_goal_object(self, env, obj_path, area=None):
+    def load_goal_object(self, env, obj_url, bounds=None):
         """
-        Load the in the desired object at a semi-random position
+        Load the desired object at a semi-random position
 
             area: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
-        obj = YCBObject(obj_path)
+        obj = YCBObject(obj_url)
         env.simulator.import_object(obj)
-        self.reset_goal(env, obj, area)
+        self.reset_goal(env, obj, bounds)
 
         return obj
 
     def reset_goal(self, env, obj, area=None):
         """
-        Attemps to place the goal object in a random position within the area.
+        Attempt to place the goal object in a random position within the area.
         """
         pos = []
         reset_success = False

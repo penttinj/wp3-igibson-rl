@@ -225,7 +225,7 @@ def train_eval(
         if "scan" in obs_spec:
             preprocessing_layers["scan"] = tf.keras.Sequential(
                 mlp_layers(
-                    # conv_layer_params=conv_1d_layer_params, # Enable later when implemented keras conv1d
+                    conv_layer_params=conv_1d_layer_params, # Enable later when implemented keras conv1d
                     fc_layer_params=encoder_fc_layers,
                     kernel_initializer=glorot_uniform_initializer,
                 )
@@ -338,6 +338,7 @@ def train_eval(
         train_time = 0
         timed_at_step = global_step.numpy()
 
+        print(f"{global_step.numpy()=}")
         while environment_steps_metric.result() < num_environment_steps:
             global_step_val = global_step.numpy()
             if global_step_val % eval_interval == 0:

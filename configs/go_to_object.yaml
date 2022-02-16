@@ -34,6 +34,7 @@ goal_format: polar
 task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excluding the goal's position
 initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]
+# TODO: Define a target spawn area
 
 # reward
 reward_type: geodesic

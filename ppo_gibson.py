@@ -21,6 +21,10 @@ To run:
 tensorboard --logdir $PWD/results/gibson/ --port 2223 &
 
 python ppo_gibson.py --config_file=configs/go_to_object.yaml --root_dir=results/1
+or
+python ppo_gibson.py --config_file=configs/go_to_object.yaml --root_dir=results/1 --eval_env_mode=gui_interactive
+or
+python ppo_gibson.py --config_file=configs/go_to_object.yaml --root_dir=results/1 --eval_env_mode=gui_interactive --num_parallel_environments=1
 
 ```
 """
@@ -107,7 +111,7 @@ def train_eval(
     use_rnns=False,
     lstm_size=(20,),
     # Params for collect
-    num_environment_steps=25000000,
+    num_environment_steps=2500000,
     collect_episodes_per_iteration=1,
     num_parallel_environments=5,
     replay_buffer_capacity=1001,  # Per-environment
@@ -163,6 +167,7 @@ def train_eval(
     with tf.compat.v2.summary.record_if(lambda: tf.math.equal(global_step % summary_interval, 0)):
         if random_seed is not None:
             tf.compat.v1.set_random_seed(random_seed)
+
         eval_tf_env = tf_py_environment.TFPyEnvironment(
             parallel_py_environment.ParallelPyEnvironment(
                 [
@@ -175,7 +180,13 @@ def train_eval(
                 ]
             )
         )
-        print("kaibi after eval_tf_env")
+        """
+        eval_tf_env = tf_py_environment.TFPyEnvironment(env_load_fn(
+                        config_file=config_file,
+                        model_id=scene_id,
+                        env_mode=eval_env_mode,
+                        device_idx=gpu_g,))
+        """
 
         tf_py_env = [
             lambda: env_load_fn(
@@ -188,7 +199,6 @@ def train_eval(
         tf_env = tf_py_environment.TFPyEnvironment(
             parallel_py_environment.ParallelPyEnvironment(tf_py_env)
         )
-        print("kaibi after tf_env")
 
         obs_spec = tf_env.time_step_spec().observation
         glorot_uniform_initializer = tf.keras.initializers.glorot_uniform()
@@ -237,7 +247,7 @@ def train_eval(
         # optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate) # Old implement
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         print("kaibi after optimizer=...")
-        
+
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             tf_env.observation_spec(),
             tf_env.action_spec(),
@@ -354,7 +364,7 @@ def train_eval(
                 train_metric.tf_summaries(train_step=global_step, step_metrics=step_metrics)
 
             # Make a video of the currently saved policy
-            if global_step_val % 200:
+            if global_step_val % 200 and False: # Rendering doesnt work the same on a parallell py env
                 import imageio
                 import numpy as np
 

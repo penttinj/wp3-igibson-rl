@@ -31,7 +31,7 @@ task: go_to_object
 target_dist_min: 1.0
 target_dist_max: 10.0
 goal_format: polar
-task_obs_dim: 2 # Changed from 4 because i am excluding the goal's position
+task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excluding the goal's position
 initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]
 
@@ -55,13 +55,13 @@ collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot 
 
 # sensor spec
 # output: [task_obs]
-output: [task_obs, rgb]
+output: [task_obs, scan]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
 fisheye: false
-image_width: 640
-image_height: 480
+image_width: 160 # 640
+image_height: 120 # 480
 vertical_fov: 45
 # depth
 depth_low: 0.8

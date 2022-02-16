@@ -251,21 +251,9 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: task-specific observation
         """
-        #task_obs = self.global_to_local(env, self.target_pos)[:2] # <- NOTE!!! It calculates the target's position.
-                                                                  # Why should the agent/RL network get this information?
-                                                                  # velocities are fine, but this defeats the whole purpose of using
-                                                                  # cameras, sensors, lidars to simulate a real environment :SSSS
-                                                                  
-                                                                  # NOTE from johan 2.2.2022: The goal position could be known
-                                                                  # if the robot uses SLAM and the goal (room, thing) has a known
-                                                                  # position inside the house, it should be totally fine to the 
-                                                                  # agent to get this observation
-
-                                                                  # TODO: Maybe just delete this from task obs?
-        #if self.goal_format == "polar":
-        #    task_obs = np.array(cartesian_to_polar(task_obs[0], task_obs[1]))
-        
-        task_obs = () # I guess we'll try with deleting the target pos 
+        task_obs = self.global_to_local(env, self.target_pos)[:2]
+        if self.goal_format == "polar":
+            task_obs = np.array(cartesian_to_polar(task_obs[0], task_obs[1]))
         
         
 

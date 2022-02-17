@@ -36,6 +36,7 @@ from __future__ import print_function
 import functools
 from json import encoder
 import os
+import sys
 import time
 
 from absl import app
@@ -96,6 +97,7 @@ flags.DEFINE_string(
     "Simulator rendering mode during evaluation. \
     Values: headless, headless_tensor, gui_interactive, gui_non_interactive, vr",
 )
+flags.DEFINE_boolean("eval_only", False, "If true, only runs evaluation of the latest policy.")
 
 FLAGS = flags.FLAGS
 
@@ -120,7 +122,7 @@ def train_eval(
     learning_rate=1e-3,
     # Params for eval
     num_eval_episodes=30,
-    eval_interval=500,
+    eval_interval=1000,
     # Params for summaries and logging
     train_checkpoint_interval=500,
     policy_checkpoint_interval=500,
@@ -139,9 +141,10 @@ def train_eval(
     conv_2d_layer_params=[(32, (8, 8), 4), (64, (4, 4), 2), (64, (3, 3), 2)],
     encoder_fc_layers=[256],
     conv_1d_layer_params=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+    eval_only=False,
 ):
     """A simple train and eval for PPO."""
-    print("kaibi: init:", f"{train_env_mode=}", f"{eval_env_mode=}")
+    print("debugz: init:", f"{train_env_mode=}", f"{eval_env_mode=}")
     if root_dir is None:
         raise AttributeError("train_eval requires a root_dir.")
 
@@ -243,10 +246,9 @@ def train_eval(
             preprocessing_combiner = None
         else:
             preprocessing_combiner = tf.keras.layers.Concatenate(axis=-1)
-
+        print("debugz preprocessing_layers:", preprocessing_layers)
         # optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate) # Old implement
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-        print("kaibi after optimizer=...")
 
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             tf_env.observation_spec(),
@@ -265,7 +267,7 @@ def train_eval(
             preprocessing_combiner=preprocessing_combiner,
             kernel_initializer=glorot_uniform_initializer,
         )
-        print("kaibi after actor and value net")
+        print("debugz after actor and value net")
         tf_agent = ppo_clip_agent.PPOClipAgent(
             tf_env.time_step_spec(),
             tf_env.action_spec(),
@@ -308,7 +310,7 @@ def train_eval(
             ckpt_dir=train_dir,
             agent=tf_agent,
             global_step=global_step,
-            metrics=metric_utils.MetricsGroup(train_metrics, "train_metrics"),
+            #metrics=metric_utils.MetricsGroup(train_metrics, "train_metrics"),
         )
         policy_checkpointer = common.Checkpointer(
             ckpt_dir=os.path.join(train_dir, "policy"), policy=eval_policy, global_step=global_step
@@ -323,6 +325,16 @@ def train_eval(
             observers=[replay_buffer.add_batch] + train_metrics,
             num_episodes=collect_episodes_per_iteration,
         )
+
+        if eval_only:
+            metric_utils.eager_compute(
+                eval_metrics,
+                eval_tf_env,
+                eval_policy,
+                num_episodes=num_eval_episodes,
+                train_step=global_step,
+            )
+            sys.exit(0)
 
         def train_step():
             trajectories = replay_buffer.gather_all()
@@ -431,6 +443,7 @@ def main(_):
         config_file=FLAGS.config_file,
         train_env_mode=FLAGS.train_env_mode,
         eval_env_mode=FLAGS.eval_env_mode,
+        eval_only=FLAGS.eval_only,
     )
 
 

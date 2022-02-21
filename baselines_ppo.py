@@ -1,7 +1,9 @@
 import logging
+import math
 import os
 import sys
 import argparse
+from tabnanny import check
 from typing import Callable
 
 import igibson
@@ -16,7 +18,7 @@ try:
     from stable_baselines3.common.evaluation import evaluate_policy
     from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-    from stable_baselines3.common.utils import set_random_seed
+    from stable_baselines3.common.utils import set_random_seed, get_latest_run_id
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 
 except ModuleNotFoundError:
@@ -31,11 +33,7 @@ parser = argparse.ArgumentParser(
     description="Train a Turtlebot in an iGibson environment using PyTorch stable-baselines3's PPO"
 )
 parser.add_argument(
-    "-e",
-    "--eval",
-    dest="training",
-    action="store_false",
-    help="flag for running evluation only",
+    "-e", "--eval", dest="training", action="store_false", help="flag for running evluation only",
 )
 parser.add_argument(
     "-s", "--steps", metavar="NUM_STEPS", default=40000, type=int, help="number of steps to train"
@@ -114,6 +112,14 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         return th.cat(encoded_tensor_list, dim=1)
 
 
+def get_latest_ckpt(log_dir, log_name, ckpt_root_dir):
+    run_id = get_latest_run_id(log_dir, log_name)
+    ckpt_run_dir = os.path.join(ckpt_root_dir, f"{log_name}_{run_id}")
+    ckpt_name = f"{log_name}-{run_id}-ckpt"
+    os.makedirs(ckpt_run_dir, exist_ok=True)
+    return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
+
+
 def main(training=True, num_steps=80000):
     """
     Example to set a training process with Stable Baselines 3
@@ -169,29 +175,40 @@ def main(training=True, num_steps=80000):
             policy_kwargs=policy_kwargs,
         )
         print(f"{model.policy=}")
+
+        # Create a checkpoint folder for this run
+        ckpt_base, ckpt_id = get_latest_ckpt(
+            log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
+        )
+
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-
-        # Train the model for the given number of steps
-        model.learn(num_steps)
+        for i in range(math.floor(num_steps / 5)):
+            # Train the model for the given number of steps
+            model.learn(num_steps)
+            model.save(f"{ckpt_base}{ckpt_id+1}")
+            ckpt_id += 1
 
         # Evaluate the policy after training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"After Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
 
         # Save the trained model and delete it
-        model.save(os.path.join(checkpoint_dir, "ckpt_foo1"))
-        del model
+        model.save(f"{ckpt_base}{ckpt_id+1}")
 
         # Reload the trained model from file
-        model = PPO.load(os.path.join(checkpoint_dir, "ckpt_foo1"))
+        model = PPO.load(f"{ckpt_base}{ckpt_id+1}")
 
         # Evaluate the trained model loaded from file
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"After Loading: Mean reward: {mean_reward} +/- {std_reward:.2f}")
     else:
         logging.info("Eval only mode")
+        ckpt_base, ckpt_id = get_latest_ckpt(
+            log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
+        )
+        print("checkpoint=", ckpt_base, ckpt_id)
         eval_env = Wp3TestEnv(
             config_file=config_file,
             mode="gui_interactive",
@@ -199,7 +216,7 @@ def main(training=True, num_steps=80000):
             physics_timestep=1 / 120.0,
         )
 
-        model = PPO.load(os.path.join(checkpoint_dir, "ckpt_foo1"))
+        model = PPO.load(f"{ckpt_base}{ckpt_id}")
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 

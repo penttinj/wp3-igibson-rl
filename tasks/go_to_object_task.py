@@ -42,12 +42,13 @@ class GoToObjectTask(BaseTask):
         ]
         self.initial_pos = np.array(self.config.get("initial_pos", [0, 0, 0]))
         self.initial_orn = np.array(self.config.get("initial_orn", [0, 0, 0]))
-        self.target_pos = np.array([99, 99, -99])
+        self.target_pos = np.array([99, 99, -99]) # Initial pos out of bounds, because this position will be generated anyway
+        self.spawn_bounds = np.array(self.config.get("spawn_bounds", [[-1, -1], [1, 1]]))
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
 
         self.goal_object = self.load_goal_object(
-            env, "003_cracker_box", [[-0.3, -0.3], [0.3, 0.3]] # [[-1, -1], [1, 1]]
+            env, "003_cracker_box", self.spawn_bounds
         )  # TODO: Make yaml config property for area and object args
 
         self.visible_target = self.config.get("visible_target", False)
@@ -160,7 +161,7 @@ class GoToObjectTask(BaseTask):
 
         return obj
 
-    def reset_goal(self, env, obj, area=None):
+    def reset_goal(self, env, obj, bounds=None):
         """
         Attempt to place the goal object in a random position within the area.
         """
@@ -170,15 +171,15 @@ class GoToObjectTask(BaseTask):
         max_trials = 100
         state_id = -1
 
-        if area is None:
+        if bounds is None:
 
             pos = [1, 1, 0.1]
             reset_success = env.test_valid_position(obj, pos, orn)
         else:
             state_id = p.saveState()
             for _ in range(max_trials):
-                x = np.random.uniform(low=area[0][0], high=area[1][0])
-                y = np.random.uniform(low=area[0][1], high=area[1][1])
+                x = np.random.uniform(low=bounds[0][0], high=bounds[1][0])
+                y = np.random.uniform(low=bounds[0][1], high=bounds[1][1])
                 pos = [x, y, 0.1]
                 # print("DEBUG: The tried position is=", pos)
                 reset_success = env.test_valid_position(obj, pos, orn)
@@ -204,7 +205,7 @@ class GoToObjectTask(BaseTask):
         elif isinstance(env.scene, StaticIndoorScene):
             env.scene.reset_floor(floor=self.floor_num)
 
-        self.reset_goal(env, self.goal_object, [[-1, -1], [1, 1]])
+        self.reset_goal(env, self.goal_object, self.spawn_bounds)
 
     def reset_agent(self, env):
         """
@@ -212,7 +213,8 @@ class GoToObjectTask(BaseTask):
 
         :param env: environment instance
         """
-        print("Resetting agent")
+        if env.config.get("debug", False):
+            print("Resetting agent")
         env.land(env.robots[0], self.initial_pos, self.initial_orn)
         self.path_length = 0.0
         self.robot_pos = self.initial_pos[:2]

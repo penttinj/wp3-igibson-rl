@@ -1,3 +1,6 @@
+# dev options
+debug: false
+
 # scene
 scene: gibson # = initiates StaticIndoorScene
 scene_id: Rs # = Name of scene, passed to the constructor of above class ^
@@ -35,6 +38,7 @@ task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excludi
 initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]
 # TODO: Define a target spawn area
+spawn_bounds: [[-1, -1], [1, 1]] # [[lower_x, lower_y], [upper_x, upper_y]] ## example [[-1, -1], [1, 1]]
 
 # reward
 reward_type: geodesic
@@ -55,8 +59,8 @@ initial_pos_z_offset: 0.1
 collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot links
 
 # sensor spec
-# output: [task_obs]
-output: [task_obs]
+# output: [task_obs, rgb, depth, scan]
+output: [task_obs, scan]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE

@@ -2,3 +2,5 @@
 .vscode
 __pychache__/
 results/
+results_tfa/
+results_baselines/

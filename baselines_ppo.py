@@ -184,9 +184,9 @@ def main(training=True, num_steps=80000):
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-        for i in range(math.floor(num_steps / 5)):
+        for i in range(5):
             # Train the model for the given number of steps
-            model.learn(num_steps)
+            model.learn(math.floor(num_steps / 5))
             model.save(f"{ckpt_base}{ckpt_id+1}")
             ckpt_id += 1
 

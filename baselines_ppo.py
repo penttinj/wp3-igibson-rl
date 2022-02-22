@@ -7,7 +7,6 @@ from tabnanny import check
 from typing import Callable
 
 import igibson
-from sympy import root
 from envs.wp3_test_env import Wp3TestEnv
 
 try:
@@ -37,6 +36,12 @@ parser.add_argument(
 )
 parser.add_argument(
     "-s", "--steps", metavar="NUM_STEPS", default=40000, type=int, help="number of steps to train"
+)
+parser.add_argument(
+    "--checkpoint_interval",
+    default=10000,
+    type=int,
+    help="number of steps interval between checkpoints",
 )
 args = parser.parse_args()
 
@@ -120,13 +125,17 @@ def get_latest_ckpt(log_dir, log_name, ckpt_root_dir):
     return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
 
 
-def main(training=True, num_steps=80000):
+def main(training=True, num_steps=80000, checkpoint_interval=10000):
     """
     Example to set a training process with Stable Baselines 3
     Loads a scene and starts the training process for a navigation task with images using PPO
     Saves the checkpoint and loads it again
     """
     logging.info("*" * 80 + "\nDescription:" + main.__doc__ + "*" * 80)
+    assert (
+        math.floor(num_steps / checkpoint_interval) > 0
+    ), "Number of steps must be larger than checkpoint interval"
+    train_loops = math.floor(num_steps / checkpoint_interval)
     config_file = "configs/go_to_object.yaml"
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
@@ -180,14 +189,16 @@ def main(training=True, num_steps=80000):
         ckpt_base, ckpt_id = get_latest_ckpt(
             log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
         )
+        ckpt_id += 1 # Increment by 1 to save to a new file
 
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-        for i in range(5):
+        for _ in range(train_loops):
             # Train the model for the given number of steps
-            model.learn(math.floor(num_steps / 5))
-            model.save(f"{ckpt_base}{ckpt_id+1}")
+            model.learn(math.floor(num_steps / train_loops))
+            logging.info("Saving model...")
+            model.save(f"{ckpt_base}{ckpt_id}")
             ckpt_id += 1
 
         # Evaluate the policy after training
@@ -222,4 +233,4 @@ def main(training=True, num_steps=80000):
 
 
 if __name__ == "__main__":
-    main(training=args.training, num_steps=args.steps)
+    main(training=args.training, num_steps=args.steps, checkpoint_interval=args.checkpoint_interval)

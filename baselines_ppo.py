@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 from tabnanny import check
+import time
 from typing import Callable
 
 import igibson
@@ -19,6 +20,7 @@ try:
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
     from stable_baselines3.common.utils import set_random_seed, get_latest_run_id
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+    from stable_baselines3.common.callbacks import CheckpointCallback
 
 except ModuleNotFoundError:
     print("stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
@@ -32,12 +34,13 @@ parser = argparse.ArgumentParser(
     description="Train a Turtlebot in an iGibson environment using PyTorch stable-baselines3's PPO"
 )
 parser.add_argument(
-    "-e", "--eval", dest="training", action="store_false", help="flag for running evluation only",
+    "-e", "--eval", dest="training", action="store_false", help="flag for running evaluation only",
 )
 parser.add_argument(
     "-s", "--steps", metavar="NUM_STEPS", default=40000, type=int, help="number of steps to train"
 )
 parser.add_argument(
+    "-c",
     "--checkpoint_interval",
     default=10000,
     type=int,
@@ -117,7 +120,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         return th.cat(encoded_tensor_list, dim=1)
 
 
-def get_latest_ckpt(log_dir, log_name, ckpt_root_dir):
+def get_latest_ckpt(log_dir: str, log_name: str, ckpt_root_dir: str):
     run_id = get_latest_run_id(log_dir, log_name)
     ckpt_run_dir = os.path.join(ckpt_root_dir, f"{log_name}_{run_id}")
     ckpt_name = f"{log_name}-{run_id}-ckpt"
@@ -125,7 +128,7 @@ def get_latest_ckpt(log_dir, log_name, ckpt_root_dir):
     return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
 
 
-def main(training=True, num_steps=80000, checkpoint_interval=10000):
+def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int = 10000):
     """
     Example to set a training process with Stable Baselines 3
     Loads a scene and starts the training process for a navigation task with images using PPO
@@ -135,12 +138,17 @@ def main(training=True, num_steps=80000, checkpoint_interval=10000):
     assert (
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
-    train_loops = math.floor(num_steps / checkpoint_interval)
     config_file = "configs/go_to_object.yaml"
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
-    checkpoint_dir = os.path.join(root_dir, "checkpoints")
+    checkpoint_dir = os.path.join(
+        root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
+    )
     num_environments = 8
+    checkpoint_freq = checkpoint_interval // num_environments
+    checkpoint_cb = CheckpointCallback(
+        save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
+    )
 
     # Function callback to create environments
     def make_env(rank: int, seed: int = 0) -> Callable:
@@ -164,12 +172,17 @@ def main(training=True, num_steps=80000, checkpoint_interval=10000):
         env = VecMonitor(env)
 
         # Create a new environment for evaluation
-        eval_env = Wp3TestEnv(
-            config_file=config_file,
-            mode="gui_interactive",
-            action_timestep=1 / 10.0,
-            physics_timestep=1 / 120.0,
+        eval_env = SubprocVecEnv(
+            [
+                lambda: Wp3TestEnv(
+                    config_file=config_file,
+                    mode="gui_interactive",
+                    action_timestep=1 / 10.0,
+                    physics_timestep=1 / 120.0,
+                )
+            ]
         )
+        eval_env = VecMonitor(eval_env)
 
         # Obtain the arguments/parameters for the policy and create the PPO model
         policy_kwargs = dict(features_extractor_class=CustomCombinedExtractor,)
@@ -182,53 +195,47 @@ def main(training=True, num_steps=80000, checkpoint_interval=10000):
             verbose=1,
             tensorboard_log=tensorboard_log_dir,
             policy_kwargs=policy_kwargs,
+            batch_size=256,
         )
         print(f"{model.policy=}")
-
-        # Create a checkpoint folder for this run
-        ckpt_base, ckpt_id = get_latest_ckpt(
-            log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
-        )
-        ckpt_id += 1 # Increment by 1 to save to a new file
 
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-        for _ in range(train_loops):
-            # Train the model for the given number of steps
-            model.learn(math.floor(num_steps / train_loops))
-            logging.info("Saving model...")
-            model.save(f"{ckpt_base}{ckpt_id}")
-            ckpt_id += 1
+        start = time.time()
+        # Train the model for the given number of steps
+        model.learn(num_steps, callback=checkpoint_cb)
 
         # Evaluate the policy after training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"After Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
-
-        # Save the trained model and delete it
-        model.save(f"{ckpt_base}{ckpt_id+1}")
-
-        # Reload the trained model from file
-        model = PPO.load(f"{ckpt_base}{ckpt_id+1}")
+        end = time.time()
+        train_time = end - start
 
         # Evaluate the trained model loaded from file
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"After Loading: Mean reward: {mean_reward} +/- {std_reward:.2f}")
+        logging.info("Time taken for training ", train_time)
     else:
         logging.info("Eval only mode")
         ckpt_base, ckpt_id = get_latest_ckpt(
             log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
         )
         print("checkpoint=", ckpt_base, ckpt_id)
-        eval_env = Wp3TestEnv(
-            config_file=config_file,
-            mode="gui_interactive",
-            action_timestep=1 / 10.0,
-            physics_timestep=1 / 120.0,
+        eval_env = SubprocVecEnv(
+            [
+                lambda: Wp3TestEnv(
+                    config_file=config_file,
+                    mode="gui_interactive",
+                    action_timestep=1 / 10.0,
+                    physics_timestep=1 / 120.0,
+                )
+            ]
         )
-
-        model = PPO.load(f"{ckpt_base}{ckpt_id}")
-        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
+        eval_env = VecMonitor(eval_env)
+        # model = PPO.load(f"{ckpt_base}{ckpt_id}")
+        model = PPO.load(f"results_baselines/checkpoints/PPO_30/PPO-30-ckpt_2.zip")
+        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 
 

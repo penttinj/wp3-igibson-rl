@@ -26,7 +26,8 @@ def main():
     if platform == "darwin":
         config_data["texture_scale"] = 0.5
     env = Wp3TestEnv(config_file=config_data, mode="gui_interactive")
-    for j in range(10):
+    # for j in range(10):
+    while True:
         logging.info("Resetting environment")
         env.reset()
         for i in range(100):

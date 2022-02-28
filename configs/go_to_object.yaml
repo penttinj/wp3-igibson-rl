@@ -38,7 +38,8 @@ task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excludi
 initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]
 # TODO: Define a target spawn area
-spawn_bounds: [[-1, -1], [1, 1]] # [[lower_x, lower_y], [upper_x, upper_y]] ## example [[-1, -1], [1, 1]]
+# spawn_bounds: [[-1, -1], [1, 1]] # [[lower_x, lower_y], [upper_x, upper_y]] ## example [[-1, -1], [1, 1]]
+spawn_bounds: [[-2.7, 1.1], [-2.8,0.9]]
 
 # reward
 reward_type: geodesic
@@ -60,7 +61,7 @@ collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot 
 
 # sensor spec
 # output: [task_obs, rgb, depth, scan]
-output: [task_obs, scan, rgb]
+output: [task_obs, scan]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
@@ -87,5 +88,5 @@ depth_noise_rate: 0.0
 scan_noise_rate: 0.0
 
 # visual objects
-visible_target: true
+visible_target: false
 visible_path: false

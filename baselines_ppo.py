@@ -195,7 +195,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
             verbose=1,
             tensorboard_log=tensorboard_log_dir,
             policy_kwargs=policy_kwargs,
-            batch_size=256,
+            batch_size=64,
         )
         print(f"{model.policy=}")
 
@@ -212,9 +212,6 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         end = time.time()
         train_time = end - start
 
-        # Evaluate the trained model loaded from file
-        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
-        print(f"After Loading: Mean reward: {mean_reward} +/- {std_reward:.2f}")
         logging.info("Time taken for training ", train_time)
     else:
         logging.info("Eval only mode")
@@ -241,3 +238,4 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
 
 if __name__ == "__main__":
     main(training=args.training, num_steps=args.steps, checkpoint_interval=args.checkpoint_interval)
+

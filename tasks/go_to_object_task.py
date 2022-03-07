@@ -42,7 +42,9 @@ class GoToObjectTask(BaseTask):
         ]
         self.initial_pos = np.array(self.config.get("initial_pos", [0, 0, 0]))
         self.initial_orn = np.array(self.config.get("initial_orn", [0, 0, 0]))
-        self.target_pos = np.array([99, 99, -99]) # Initial pos out of bounds, because this position will be generated anyway
+        self.target_pos = np.array(
+            [99, 99, -99]
+        )  # Initial pos out of bounds, because this position will be generated anyway
         self.spawn_bounds = np.array(self.config.get("spawn_bounds", [[-1, -1], [1, 1]]))
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
@@ -85,10 +87,10 @@ class GoToObjectTask(BaseTask):
             initial_offset=[0, 0, cyl_length / 2.0],
         )
 
-        #if self.target_visual_object_visible_to_agent:
+        # if self.target_visual_object_visible_to_agent:
         env.simulator.import_object(self.initial_pos_vis_obj)
         env.simulator.import_object(self.target_pos_vis_obj)
-        #else:
+        # else:
         #    self.initial_pos_vis_obj.load(env.simulator)
         #    self.target_pos_vis_obj.load(env.simulator)
 
@@ -96,7 +98,7 @@ class GoToObjectTask(BaseTask):
         for instance in self.initial_pos_vis_obj.renderer_instances:
             instance.hidden = True
 
-                # The visual object indicating the target location may be visible
+            # The visual object indicating the target location may be visible
         for instance in self.target_pos_vis_obj.renderer_instances:
             instance.hidden = not self.visible_target
 
@@ -256,8 +258,6 @@ class GoToObjectTask(BaseTask):
         task_obs = self.global_to_local(env, self.target_pos)[:2]
         if self.goal_format == "polar":
             task_obs = np.array(cartesian_to_polar(task_obs[0], task_obs[1]))
-        
-        
 
         # linear velocity along the x-axis
         linear_velocity = rotate_vector_3d(

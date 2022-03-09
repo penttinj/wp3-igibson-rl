@@ -93,8 +93,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Flatten(),
                 )
                 test_tensor = th.zeros([subspace.shape[1], subspace.shape[0]])
-                blyat_nn = nn.Conv1d(n_input_channels, 32, kernel_size=8, stride=4, padding=0)
-                print("blyat test_tensor device=", test_tensor.get_device())
                 with th.no_grad():
                     n_flatten = cnn(test_tensor[None]).shape[1]
                 fc = nn.Sequential(nn.Linear(n_flatten, feature_size), nn.ReLU())
@@ -140,7 +138,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
     assert (
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
-    config_file = "configs/go_to_object.yaml"
+    config_file = "configs/go_to_object_single_pos.yaml"
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
@@ -201,7 +199,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         )
         print(f"{model.policy=}")
         # Random Agent, evaluation before training
-        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
+        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
         start = time.time()
         # Train the model for the given number of steps

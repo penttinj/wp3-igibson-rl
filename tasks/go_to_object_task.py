@@ -42,9 +42,7 @@ class GoToObjectTask(BaseTask):
         ]
         self.initial_pos = np.array(self.config.get("initial_pos", [0, 0, 0]))
         self.initial_orn = np.array(self.config.get("initial_orn", [0, 0, 0]))
-        self.target_pos = np.array(
-            [99, 99, -99]
-        )  # Initial pos out of bounds, because this position will be generated anyway
+        self.target_pos = np.array([99, 99, -99])
         self.spawn_bounds = np.array(self.config.get("spawn_bounds", [[-1, -1], [1, 1]]))
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
@@ -57,7 +55,7 @@ class GoToObjectTask(BaseTask):
         self.visible_path = self.config.get("visible_path", False)
         self.floor_num = 0
 
-        print("[GoToObject init] configs:", f"{self.config.get('visible_target')=}")
+        # print("[GoToObject init] configs:", f"{self.config.get('visible_target')=}")
 
         self.load_visualization(env)
 
@@ -103,6 +101,7 @@ class GoToObjectTask(BaseTask):
             instance.hidden = not self.visible_target
 
         if env.scene.build_graph:
+            print("build_graph is true")
             self.num_waypoints_vis = 250
             self.waypoints_vis = [
                 VisualMarker(

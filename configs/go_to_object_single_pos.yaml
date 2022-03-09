@@ -39,13 +39,8 @@ task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excludi
 initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]
 # spawn_bounds: [[-1, -1], [1, 1]] # [[lower_x, lower_y], [upper_x, upper_y]] ## example [[-1, -1], [1, 1]]
+# spawn_bounds: [[-0.5, 2.1], [-0.7, 2.4]]
 spawn_bounds: [[-2.7, 1.1], [-2.8, 0.9]]
-# spawn_bounds: [
-  # [[-2.7, 1.1], [-2.8, 0.9]],
-  # [[-2.7, 1.1], [-2.8, 0.9]],
-  # [[-2.7, 1.1], [-2.8, 0.9]],
-  # [[-2.7, 1.1], [-2.8, 0.9]]
-# ]
 
 # reward
 reward_type: geodesic

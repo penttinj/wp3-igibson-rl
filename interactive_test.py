@@ -20,7 +20,7 @@ def main():
     # If they have not been downloaded before, download assets and Rs Gibson (non-interactive) models
     download_assets()
     download_demo_data()
-    config_filename = os.path.join("/home/johan/Projects/WP3/tf2/configs/go_to_object.yaml")
+    config_filename = os.path.join("/home/johan/Projects/WP3/tf2/configs/go_to_object_single_pos.yaml")
     config_data = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
     # Reduce texture scale for Mac.
     if platform == "darwin":

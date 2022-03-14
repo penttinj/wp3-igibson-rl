@@ -138,7 +138,8 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
     assert (
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
-    config_file = "configs/go_to_object_single_pos.yaml"
+
+    config_file = "configs/go_to_object.yaml"
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
@@ -230,7 +231,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         )
         eval_env = VecMonitor(eval_env)
         # model = PPO.load(f"{ckpt_base}{ckpt_id}")
-        model = PPO.load(f"results_baselines/checkpoints/PPO_4/ppo_model_450000_steps.zip")
+        model = PPO.load(f"results_baselines/checkpoints/PPO_24/ppo_model_350000_steps.zip")
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=40)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 

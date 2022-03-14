@@ -9,25 +9,26 @@ import numpy as np
 import pybullet as p
 from transforms3d.euler import euler2quat
 
+from igibson import object_states
 from igibson.envs.env_base import BaseEnv
-from igibson.external.pybullet_tools.utils import stable_z_on_aabb
-from igibson.robots.behavior_robot import BehaviorRobot
 from igibson.robots.robot_base import BaseRobot
 from igibson.sensors.bump_sensor import BumpSensor
 from igibson.sensors.scan_sensor import ScanSensor
 from igibson.sensors.vision_sensor import VisionSensor
-# from igibson.tasks.behavior_task import BehaviorTask
-# from igibson.tasks.dummy_task import DummyTask
+from igibson.tasks.behavior_task import BehaviorTask
+from igibson.tasks.dummy_task import DummyTask
 from igibson.tasks.dynamic_nav_random_task import DynamicNavRandomTask
 from igibson.tasks.interactive_nav_random_task import InteractiveNavRandomTask
 from igibson.tasks.point_nav_fixed_task import PointNavFixedTask
 from igibson.tasks.point_nav_random_task import PointNavRandomTask
 from igibson.tasks.reaching_random_task import ReachingRandomTask
 from igibson.tasks.room_rearrangement_task import RoomRearrangementTask
-# from igibson.tasks.static_goal_task import StaticGoalTask
+from igibson.tasks.static_goal_task import StaticGoalTask
 from igibson.tasks.go_to_object_task import GoToObjectTask
 from igibson.utils.constants import MAX_CLASS_COUNT, MAX_INSTANCE_COUNT
 from igibson.utils.utils import quatToXYZW
+
+log = logging.getLogger(__name__)
 
 
 class Wp3TestEnv(BaseEnv):
@@ -283,7 +284,7 @@ class Wp3TestEnv(BaseEnv):
                 state[modality] = scan_obs[modality]
         if "bump" in self.sensors:
             state["bump"] = self.sensors["bump"].get_obs(self)
-        if "proprioception" in self.sensors:
+        if "proprioception" in self.output:
             state["proprioception"] = np.array(self.robots[0].get_proprioception())
 
         return state
@@ -295,7 +296,11 @@ class Wp3TestEnv(BaseEnv):
         :return: a list of collisions from the last physics timestep
         """
         self.simulator_step()
-        collision_links = list(p.getContactPoints(bodyA=self.robot_body_id))
+        collision_links = [
+            collision
+            for bid in self.robots[0].get_body_ids()
+            for collision in p.getContactPoints(bodyA=bid)
+        ]
         return self.filter_collision_links(collision_links)
 
     def filter_collision_links(self, collision_links):
@@ -305,6 +310,7 @@ class Wp3TestEnv(BaseEnv):
         :param collision_links: original collisions, a list of collisions
         :return: filtered collisions
         """
+        # TODO: Improve this to accept multi-body robots.
         new_collision_links = []
         for item in collision_links:
             # ignore collision with body b
@@ -316,7 +322,10 @@ class Wp3TestEnv(BaseEnv):
                 continue
 
             # ignore self collision with robot link a (body b is also robot itself)
-            if item[2] == self.robot_body_id and item[4] in self.collision_ignore_link_a_ids:
+            if (
+                item[2] == self.robots[0].base_link.body_id
+                and item[4] in self.collision_ignore_link_a_ids
+            ):
                 continue
             new_collision_links.append(item)
         return new_collision_links
@@ -371,11 +380,11 @@ class Wp3TestEnv(BaseEnv):
         self.simulator_step()
         collisions = list(p.getContactPoints(bodyA=body_id))
 
-        if (
-            logging.root.level <= logging.DEBUG
+        if log.isEnabledFor(
+            logging.INFO
         ):  # Only going into this if it is for logging --> efficiency
             for item in collisions:
-                logging.debug(
+                log.debug(
                     "bodyA:{}, bodyB:{}, linkA:{}, linkB:{}".format(
                         item[1], item[2], item[3], item[4]
                     )
@@ -398,12 +407,12 @@ class Wp3TestEnv(BaseEnv):
         if offset is None:
             offset = self.initial_pos_z_offset
 
-        is_robot = isinstance(obj, BaseRobot)
-        body_id = obj.get_body_id()
         # first set the correct orientation
         obj.set_position_orientation(pos, quatToXYZW(euler2quat(*orn), "wxyz"))
-        # compute stable z based on this orientation
-        stable_z = stable_z_on_aabb(body_id, [pos, pos])
+        # get the AABB in this orientation
+        lower, _ = obj.states[object_states.AABB].get_value()
+        # Get the stable Z
+        stable_z = pos[2] + (pos[2] - lower[2])
         # change the z-value of position with stable_z + additional offset
         # in case the surface is not perfect smooth (has bumps)
         obj.set_position([pos[0], pos[1], stable_z + offset])
@@ -425,8 +434,7 @@ class Wp3TestEnv(BaseEnv):
             obj.reset()
             obj.keep_still()
 
-        body_id = obj.get_body_id()
-        has_collision = self.check_collision(body_id)
+        has_collision = any(self.check_collision(body_id) for body_id in obj.get_body_ids())
         return not has_collision
 
     def land(self, obj, pos, orn):
@@ -445,19 +453,17 @@ class Wp3TestEnv(BaseEnv):
             obj.reset()
             obj.keep_still()
 
-        body_id = obj.get_body_id()
-
         land_success = False
         # land for maximum 1 second, should fall down ~5 meters
         max_simulator_step = int(1.0 / self.action_timestep)
         for _ in range(max_simulator_step):
             self.simulator_step()
-            if len(p.getContactPoints(bodyA=body_id)) > 0:
+            if any(len(p.getContactPoints(bodyA=body_id)) > 0 for body_id in obj.get_body_ids()):
                 land_success = True
                 break
 
         if not land_success:
-            logging.warning("Object failed to land.")
+            log.warning("Object failed to land.")
 
         if is_robot:
             obj.reset()
@@ -501,6 +507,7 @@ class Wp3TestEnv(BaseEnv):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",

@@ -5,3 +5,5 @@ results/
 results_tfa/
 results_baselines/
 **/__pycache__/
+igibson/
+igibson

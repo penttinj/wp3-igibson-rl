@@ -3,7 +3,7 @@
 
 # scene
 scene: gibson # = initiates StaticIndoorScene
-scene_id: Rs # = Name of scene, passed to the constructor of above class ^
+scene_id: Plessis # = Name of scene, passed to the constructor of above class ^
 build_graph: true
 load_texture: true
 pybullet_load_texture: true

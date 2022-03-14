@@ -43,6 +43,8 @@ class GoToObjectTask(BaseTask):
         self.initial_pos = np.array(self.config.get("initial_pos", [0, 0, 0]))
         self.initial_orn = np.array(self.config.get("initial_orn", [0, 0, 0]))
         self.target_pos = np.array([99, 99, -99])
+        self.target_dist_min = self.config.get("target_dist_min", 1.0)
+        self.target_dist_max = self.config.get("target_dist_max", 10.0)
         self.spawn_bounds = np.array(self.config.get("spawn_bounds", [[-1, -1], [1, 1]]))
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
@@ -174,14 +176,14 @@ class GoToObjectTask(BaseTask):
 
         if bounds is None:
 
-            pos = [1, 1, 0.1]
+            pos = [1, 1, 0.05]
             reset_success = env.test_valid_position(obj, pos, orn)
         else:
             state_id = p.saveState()
             for _ in range(max_trials):
                 x = np.random.uniform(low=bounds[0][0], high=bounds[1][0])
                 y = np.random.uniform(low=bounds[0][1], high=bounds[1][1])
-                pos = [x, y, 0.1]
+                pos = [x, y, 0.05]
                 # print("DEBUG: The tried position is=", pos)
                 reset_success = env.test_valid_position(obj, pos, orn)
                 # print("DEBUG: Random pos: reset_success=", reset_success)
@@ -194,6 +196,36 @@ class GoToObjectTask(BaseTask):
         p.removeState(state_id)
         env.land(obj, pos, orn)
         self.target_pos = np.array(pos)
+
+    def sample_initial_pose(self, env):
+        """
+        Sample robot initial pose
+
+        :param env: environment instance
+        :return: initial pose
+        """
+        max_trials = 100
+        dist = 0.0
+        initial_orn = np.array([0, 0, np.random.uniform(0, np.pi * 2)])
+        for _ in range(max_trials):
+            _, initial_pos = env.scene.get_random_point(floor=self.floor_num)
+            if env.scene.build_graph:
+                _, dist = env.scene.get_shortest_path(
+                    self.floor_num, initial_pos[:2], self.target_pos[:2], entire_path=False
+                )
+            else:
+                dist = l2_distance(initial_pos, self.target_pos)
+            if self.target_dist_min < dist < self.target_dist_max and env.test_valid_position(
+                env.robots[0], initial_pos, initial_orn
+            ):
+                break
+        if not (self.target_dist_min < dist < self.target_dist_max):
+            logging.warning("Failed to sample initial and target positions")
+        if not env.test_valid_position(env.robots[0], initial_pos, initial_orn):
+            logging.warning("Failed to find landable robot position")
+        if env.config.get("debug", False):
+            logging.debug("Sampled initial pose: {}, {}".format(initial_pos, initial_orn))
+        return initial_pos, initial_orn
 
     def reset_scene(self, env):
         """
@@ -216,6 +248,10 @@ class GoToObjectTask(BaseTask):
         """
         if env.config.get("debug", False):
             print("Resetting agent")
+        initial_pos, initial_orn = self.sample_initial_pose(env)
+        self.initial_pos = initial_pos
+        self.initial_orn = initial_orn
+
         env.land(env.robots[0], self.initial_pos, self.initial_orn)
         self.path_length = 0.0
         self.robot_pos = self.initial_pos[:2]

@@ -205,7 +205,6 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         start = time.time()
         # Train the model for the given number of steps
         model.learn(num_steps, callback=checkpoint_cb)
-
         # Evaluate the policy after training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"After Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")

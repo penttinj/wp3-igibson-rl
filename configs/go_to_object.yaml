@@ -1,5 +1,5 @@
 # dev options
-#debug: false
+debug: true
 
 # scene
 scene: gibson # = initiates StaticIndoorScene
@@ -33,6 +33,7 @@ robot:
 task: go_to_object
 target_dist_min: 1.0
 target_dist_max: 10.0
+random_nav: true # Picks a random position through the whole scene instead of using spawn_bounds
 goal_format: polar
 task_obs_dim: 4 # 2 if no target position ...Changed from 4 because i am excluding the goal's position
 initial_pos: [-2.7, 1.1, 0]

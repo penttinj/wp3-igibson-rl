@@ -48,6 +48,7 @@ class GoToObjectTask(BaseTask):
         self.spawn_bounds = np.array(self.config.get("spawn_bounds", [[-1, -1], [1, 1]]))
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
+        self.random_nav = self.config.get("random_nav", False)
 
         self.goal_object = self.load_goal_object(
             env, "003_cracker_box", self.spawn_bounds
@@ -156,7 +157,7 @@ class GoToObjectTask(BaseTask):
         """
         Load the desired object at a semi-random position
 
-            area: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
+            bounds: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
         obj = YCBObject(obj_url)
         env.simulator.import_object(obj)
@@ -164,35 +165,45 @@ class GoToObjectTask(BaseTask):
 
         return obj
 
-    def reset_goal(self, env, obj, bounds=None):
+    def reset_goal(self, env, obj, bounds=None, floor=0):
         """
         Attempt to place the goal object in a random position within the area.
         """
-        pos = []
+        pos = ()
         reset_success = False
         orn = np.array([0, 0, np.random.uniform(0, np.pi * 2)])
-        max_trials = 100
+        max_trials = 300
         state_id = -1
 
-        if bounds is None:
-
-            pos = [1, 1, 0.05]
-            reset_success = env.test_valid_position(obj, pos, orn)
-        else:
+        if self.random_nav:
             state_id = p.saveState()
             for _ in range(max_trials):
-                x = np.random.uniform(low=bounds[0][0], high=bounds[1][0])
-                y = np.random.uniform(low=bounds[0][1], high=bounds[1][1])
-                pos = [x, y, 0.05]
-                # print("DEBUG: The tried position is=", pos)
-                reset_success = env.test_valid_position(obj, pos, orn)
-                # print("DEBUG: Random pos: reset_success=", reset_success)
+                _, pos = env.scene.get_random_point(floor=floor)
+                # Test that the object can be placed there AND that the robot fits to it as well.
+                reset_success = env.test_valid_position(env.robots[0], pos, orn)
                 p.restoreState(state_id)
                 if reset_success:
                     break
+        else:
+            if bounds is None:
+                pos = [1, 1, 0.05]
+                reset_success = env.test_valid_position(obj, pos, orn)
+            else:
+                state_id = p.saveState()
+                for _ in range(max_trials):
+                    x = np.random.uniform(low=bounds[0][0], high=bounds[1][0])
+                    y = np.random.uniform(low=bounds[0][1], high=bounds[1][1])
+                    pos = [x, y, 0.05]
+                    # Test that the object can be placed there AND that the robot fits to it as well.
+                    reset_success = env.test_valid_position(
+                        obj, pos, orn
+                    ) and env.test_valid_position(env.robots[0], pos, self.initial_orn)
+                    p.restoreState(state_id)
+                    if reset_success:
+                        break
 
         if not reset_success:
-            logging.warning("WARNING: Failed to reset robot without collision")
+            logging.warning("WARNING: Failed to reset robot/object without collision")
         p.removeState(state_id)
         env.land(obj, pos, orn)
         self.target_pos = np.array(pos)
@@ -206,6 +217,7 @@ class GoToObjectTask(BaseTask):
         """
         max_trials = 100
         dist = 0.0
+        initial_pos = ()
         initial_orn = np.array([0, 0, np.random.uniform(0, np.pi * 2)])
         for _ in range(max_trials):
             _, initial_pos = env.scene.get_random_point(floor=self.floor_num)
@@ -238,7 +250,9 @@ class GoToObjectTask(BaseTask):
         elif isinstance(env.scene, StaticIndoorScene):
             env.scene.reset_floor(floor=self.floor_num)
 
-        self.reset_goal(env, self.goal_object, self.spawn_bounds)
+        self.reset_goal(
+            env=env, obj=self.goal_object, bounds=self.spawn_bounds, floor=self.floor_num
+        )
 
     def reset_agent(self, env):
         """

@@ -6,6 +6,7 @@ import argparse
 from tabnanny import check
 import time
 from typing import Callable
+from subprocess import run
 
 import igibson
 from envs.wp3_test_env import Wp3TestEnv
@@ -59,13 +60,15 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         extractors = {}
 
         total_concat_size = 0
-        feature_size = 128
+        feature_size = 256
         for key, subspace in observation_space.spaces.items():
             if key in ["proprioception", "task_obs"]:
+                print(f"CustomCombinedExtractor: {key}, {subspace.shape[0]=}")
                 extractors[key] = nn.Sequential(
                     nn.Linear(subspace.shape[0], feature_size), nn.ReLU()
                 )
             elif key in ["rgb", "highlight", "depth", "seg", "ins_seg"]:
+                print(f"CustomCombinedExtractor: {key},(num input channels): {subspace.shape[2]=}")
                 n_input_channels = subspace.shape[2]  # channel last
                 cnn = nn.Sequential(
                     nn.Conv2d(n_input_channels, 32, kernel_size=8, stride=4, padding=0),
@@ -145,7 +148,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
     checkpoint_dir = os.path.join(
         root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
     )
-    num_environments = 8
+    num_environments = 5
     checkpoint_freq = checkpoint_interval // num_environments
     checkpoint_cb = CheckpointCallback(
         save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
@@ -177,7 +180,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
             [
                 lambda: Wp3TestEnv(
                     config_file=config_file,
-                    mode="gui_interactive",
+                    mode="headless",
                     action_timestep=1 / 10.0,
                     physics_timestep=1 / 120.0,
                 )
@@ -189,6 +192,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         policy_kwargs = dict(features_extractor_class=CustomCombinedExtractor,)
         os.makedirs(tensorboard_log_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
+        run(f"cp {config_file} {checkpoint_dir}", shell=True)
 
         model = PPO(
             "MultiInputPolicy",
@@ -214,10 +218,6 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         logging.info("Time taken for training ", train_time)
     else:
         logging.info("Eval only mode")
-        ckpt_base, ckpt_id = get_latest_ckpt(
-            log_dir=tensorboard_log_dir, log_name="PPO", ckpt_root_dir=checkpoint_dir
-        )
-        print("checkpoint=", ckpt_base, ckpt_id)
         eval_env = SubprocVecEnv(
             [
                 lambda: Wp3TestEnv(
@@ -230,7 +230,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         )
         eval_env = VecMonitor(eval_env)
         # model = PPO.load(f"{ckpt_base}{ckpt_id}")
-        model = PPO.load(f"results_baselines/checkpoints/PPO_24/ppo_model_350000_steps.zip")
+        model = PPO.load(f"results_baselines/checkpoints/PPO_44/ppo_model_250000_steps.zip")
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=40)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 

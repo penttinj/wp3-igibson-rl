@@ -49,10 +49,10 @@ class GoToObjectTask(BaseTask):
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
         self.random_nav = self.config.get("random_nav", False)
-
+        print("spawn_bounds=", self.config.get("spawn_bounds"))
         self.goal_object = self.load_goal_object(
-            env, "003_cracker_box", self.spawn_bounds
-        )  # TODO: Make yaml config property for area and object args
+            env, self.config.get("target_object", "003_cracker_box"), self.spawn_bounds
+        )
 
         self.visible_target = self.config.get("visible_target", False)
         self.visible_path = self.config.get("visible_path", False)
@@ -195,9 +195,7 @@ class GoToObjectTask(BaseTask):
                     y = np.random.uniform(low=bounds[0][1], high=bounds[1][1])
                     pos = [x, y, 0.05]
                     # Test that the object can be placed there AND that the robot fits to it as well.
-                    reset_success = env.test_valid_position(
-                        obj, pos, orn
-                    ) and env.test_valid_position(env.robots[0], pos, self.initial_orn)
+                    reset_success = env.test_valid_position(obj, pos, orn)
                     p.restoreState(state_id)
                     if reset_success:
                         break

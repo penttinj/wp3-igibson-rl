@@ -6,6 +6,7 @@ try:
     import torch as th
     import torch.nn as nn
     from stable_baselines3 import A2C
+    from stable_baselines3 import PPO
     from stable_baselines3.common.evaluation import evaluate_policy
     from stable_baselines3.common.preprocessing import maybe_transpose
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -34,10 +35,10 @@ def make_env(rank: int, seed: int = 0):
     return _init
 
 
-env = SubprocVecEnv([make_env(i) for i in range(4)], start_method="fork")
+env = SubprocVecEnv([make_env(i) for i in range(1)], start_method="fork")
 eval_env = Monitor(gym.make("LunarLander-v2"))
 
-model = A2C("MlpPolicy", env, verbose=1)
+model = PPO("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=200000)
 print("Finished learning")
 

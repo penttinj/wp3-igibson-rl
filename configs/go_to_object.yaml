@@ -3,7 +3,7 @@ debug: true
 
 # scene
 scene: gibson # = initiates StaticIndoorScene
-scene_id: Plessis # = Name of scene, passed to the constructor of above class ^
+scene_id: Rs # = Name of scene, passed to the constructor of above class ^
 build_graph: true
 load_texture: true
 pybullet_load_texture: true
@@ -74,8 +74,8 @@ output: [task_obs, scan]
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
 fisheye: false
-image_width: 160 # 640
-image_height: 120 # 480
+image_width: 640 #60 # 640
+image_height: 480 #20 # 480
 vertical_fov: 45
 # depth
 depth_low: 0.8

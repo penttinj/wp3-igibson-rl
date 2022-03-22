@@ -68,7 +68,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                     nn.Linear(subspace.shape[0], feature_size), nn.ReLU()
                 )
             elif key in ["rgb", "highlight", "depth", "seg", "ins_seg"]:
-                print(f"CustomCombinedExtractor: {key},(num input channels): {subspace.shape[2]=}")
+                print(
+                    f"CustomCombinedExtractor: {key},(num input channels): {subspace.shape[2]=}, {subspace.shape=}"
+                )
                 n_input_channels = subspace.shape[2]  # channel last
                 cnn = nn.Sequential(
                     nn.Conv2d(n_input_channels, 32, kernel_size=8, stride=4, padding=0),
@@ -85,6 +87,9 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 fc = nn.Sequential(nn.Linear(n_flatten, feature_size), nn.ReLU())
                 extractors[key] = nn.Sequential(cnn, fc)
             elif key in ["scan"]:
+                print(
+                    f"CustomCombinedExtractor: {key},(num input channels): {subspace.shape[1]=}, {subspace.shape=}"
+                )
                 n_input_channels = subspace.shape[1]  # channel last
                 cnn = nn.Sequential(
                     nn.Conv1d(n_input_channels, 32, kernel_size=8, stride=4, padding=0),
@@ -189,7 +194,10 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         eval_env = VecMonitor(eval_env)
 
         # Obtain the arguments/parameters for the policy and create the PPO model
-        policy_kwargs = dict(features_extractor_class=CustomCombinedExtractor,)
+        policy_kwargs = dict(
+            features_extractor_class=CustomCombinedExtractor,
+            net_arch=[dict(pi=[256, 256], vf=[256, 256])],
+        )
         os.makedirs(tensorboard_log_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
         run(f"cp {config_file} {checkpoint_dir}", shell=True)

@@ -69,13 +69,13 @@ collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot 
 
 # sensor spec
 # output: [task_obs, rgb, depth, scan]
-output: [task_obs, scan]
+output: [task_obs, scan, rgb]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
 fisheye: false
-image_width: 640 #60 # 640
-image_height: 480 #20 # 480
+image_width: 160 # 640
+image_height: 120 # 480
 vertical_fov: 45
 # depth
 depth_low: 0.8

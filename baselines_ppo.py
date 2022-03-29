@@ -47,6 +47,12 @@ parser.add_argument(
     type=int,
     help="number of steps interval between checkpoints",
 )
+parser.add_argument(
+    "-m", "--model", type=str, help="path to a saved model(.zip file)",
+)
+parser.add_argument(
+    "--config", default="configs/go_to_object.yaml", type=str, help="path to yaml config file"
+)
 args = parser.parse_args()
 
 
@@ -136,7 +142,12 @@ def get_latest_ckpt(log_dir: str, log_name: str, ckpt_root_dir: str):
     return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
 
 
-def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int = 10000):
+def main(
+    config_file: str,
+    training: bool = True,
+    num_steps: int = 80000,
+    checkpoint_interval: int = 20000,
+):
     """
     Example to set a training process with Stable Baselines 3
     Loads a scene and starts the training process for a navigation task with images using PPO
@@ -147,13 +158,12 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
 
-    config_file = "configs/go_to_object.yaml"
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
         root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
     )
-    num_environments = 5
+    num_environments = 8
     checkpoint_freq = checkpoint_interval // num_environments
     checkpoint_cb = CheckpointCallback(
         save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
@@ -188,6 +198,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
                     mode="headless",
                     action_timestep=1 / 10.0,
                     physics_timestep=1 / 120.0,
+                    device_idx=0,
                 )
             ]
         )
@@ -196,7 +207,7 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         # Obtain the arguments/parameters for the policy and create the PPO model
         policy_kwargs = dict(
             features_extractor_class=CustomCombinedExtractor,
-            net_arch=[dict(pi=[256, 256], vf=[256, 256])],
+            net_arch=[dict(pi=[512, 512, 512], vf=[512, 512, 512])],
         )
         os.makedirs(tensorboard_log_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -208,12 +219,14 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
             verbose=1,
             tensorboard_log=tensorboard_log_dir,
             policy_kwargs=policy_kwargs,
-            batch_size=64,
+            batch_size=256,
         )
         print(f"{model.policy=}")
+
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")
+
         start = time.time()
         # Train the model for the given number of steps
         model.learn(num_steps, callback=checkpoint_cb)
@@ -223,9 +236,11 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
         end = time.time()
         train_time = end - start
 
-        logging.info("Time taken for training ", train_time)
+        logging.info(f"Time taken for training {train_time} seconds")
     else:
         logging.info("Eval only mode")
+        logging.info(f"Using config {config_file}")
+        logging.info(f"Using model {args.model}")
         eval_env = SubprocVecEnv(
             [
                 lambda: Wp3TestEnv(
@@ -237,12 +252,16 @@ def main(training: bool = True, num_steps: int = 80000, checkpoint_interval: int
             ]
         )
         eval_env = VecMonitor(eval_env)
-        # model = PPO.load(f"{ckpt_base}{ckpt_id}")
-        model = PPO.load(f"results_baselines/checkpoints/PPO_44/ppo_model_250000_steps.zip")
+        model = PPO.load(args.model)
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=40)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 
 
 if __name__ == "__main__":
-    main(training=args.training, num_steps=args.steps, checkpoint_interval=args.checkpoint_interval)
-
+    logging.basicConfig(level=logging.INFO)
+    main(
+        config_file=args.config,
+        training=args.training,
+        num_steps=args.steps,
+        checkpoint_interval=args.checkpoint_interval,
+    )

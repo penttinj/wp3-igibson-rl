@@ -3,7 +3,9 @@
 __pychache__/
 results/
 results_tfa/
+results_tfagents/
 results_baselines/
 **/__pycache__/
 igibson/
 igibson
+data/

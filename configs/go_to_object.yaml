@@ -60,7 +60,7 @@ discount_factor: 0.99
 
 # termination condition
 dist_tol: 0.36  # body width
-max_step: 800
+max_step: 500
 max_collisions_allowed: 500
 
 # misc config
@@ -69,7 +69,7 @@ collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot 
 
 # sensor spec
 # output: [task_obs, rgb, depth, scan]
-output: [task_obs, scan, rgb]
+output: [task_obs, scan]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
@@ -98,3 +98,6 @@ scan_noise_rate: 0.0
 # visual objects
 visible_target: false
 visible_path: false
+
+# TODO: Learning configuration
+# num_envs, algorithm, network arch etc

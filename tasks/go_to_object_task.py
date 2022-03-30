@@ -252,12 +252,6 @@ class GoToObjectTask(BaseTask):
             env=env, obj=self.goal_object, bounds=self.spawn_bounds, floor=self.floor_num
         )
 
-        # Reset camera position to the middle of the scene
-        s = env.simulator
-        s.viewer.initial_pos = [0, 0, 1]
-        s.viewer.initial_view_direction = [0.6, -0.8, -0.3]
-        s.viewer.reset_viewer()
-
 
     def reset_agent(self, env):
         """

@@ -21,6 +21,7 @@ try:
     from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
     from stable_baselines3.common.utils import set_random_seed, get_latest_run_id
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+    from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.callbacks import CheckpointCallback
 
 except ModuleNotFoundError:
@@ -241,17 +242,18 @@ def main(
         logging.info("Eval only mode")
         logging.info(f"Using config {config_file}")
         logging.info(f"Using model {args.model}")
-        eval_env = SubprocVecEnv(
-            [
-                lambda: Wp3TestEnv(
-                    config_file=config_file,
-                    mode="gui_interactive",
-                    action_timestep=1 / 10.0,
-                    physics_timestep=1 / 120.0,
-                )
-            ]
+        eval_env = Wp3TestEnv(
+            config_file=config_file,
+            mode="gui_interactive",
+            action_timestep=1 / 10.0,
+            physics_timestep=1 / 120.0,
         )
-        eval_env = VecMonitor(eval_env)
+        # Reset camera position to the middle of the scene
+        s = eval_env.simulator
+        s.viewer.initial_pos = [0, 0, 1]
+        s.viewer.initial_view_direction = [0.6, -0.8, -0.3]
+        s.viewer.reset_viewer()
+        eval_env = Monitor(eval_env)
         model = PPO.load(args.model)
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=40)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")

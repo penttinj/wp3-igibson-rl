@@ -49,6 +49,9 @@ parser.add_argument(
     help="number of steps interval between checkpoints",
 )
 parser.add_argument(
+    "-n", "--num_envs", default=8, type=int, help="number of parallell environments",
+)
+parser.add_argument(
     "-m", "--model", type=str, help="path to a saved model(.zip file)",
 )
 parser.add_argument(
@@ -69,7 +72,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         total_concat_size = 0
         feature_size = 256
         for key, subspace in observation_space.spaces.items():
-            if key in ["proprioception", "task_obs"]:
+            if key in ["proprioception", "task_obs", "waypoints"]:
                 print(f"CustomCombinedExtractor: {key}, {subspace.shape[0]=}")
                 extractors[key] = nn.Sequential(
                     nn.Linear(subspace.shape[0], feature_size), nn.ReLU()
@@ -164,7 +167,7 @@ def main(
     checkpoint_dir = os.path.join(
         root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
     )
-    num_environments = 8
+    num_environments = args.num_envs
     checkpoint_freq = checkpoint_interval // num_environments
     checkpoint_cb = CheckpointCallback(
         save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
@@ -214,13 +217,23 @@ def main(
         os.makedirs(checkpoint_dir, exist_ok=True)
         run(f"cp {config_file} {checkpoint_dir}", shell=True)
 
-        model = PPO(
-            "MultiInputPolicy",
-            env,
-            verbose=1,
-            tensorboard_log=tensorboard_log_dir,
-            policy_kwargs=policy_kwargs,
-            batch_size=256,
+        model = (
+            PPO(
+                "MultiInputPolicy",
+                env,
+                verbose=1,
+                tensorboard_log=tensorboard_log_dir,
+                policy_kwargs=policy_kwargs,
+                batch_size=256,
+            )
+            if args.model is None
+            else PPO.load(
+                args.model,
+                env,
+                verbose=1,
+                tensorboard_log=tensorboard_log_dir,
+                batch_size=256,
+            )
         )
         print(f"{model.policy=}")
 

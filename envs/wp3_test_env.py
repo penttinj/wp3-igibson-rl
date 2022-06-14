@@ -149,6 +149,7 @@ class Wp3TestEnv(BaseEnv):
         self.output = self.config["output"]
         self.image_width = self.config.get("image_width", 128)
         self.image_height = self.config.get("image_height", 128)
+        self.waypoints_dim = self.config.get("num_waypoints", 1) * 2 # n * 2 for x,y coords
         observation_space = OrderedDict()
         sensors = OrderedDict()
         vision_modalities = []
@@ -157,6 +158,10 @@ class Wp3TestEnv(BaseEnv):
         if "task_obs" in self.output:
             observation_space["task_obs"] = self.build_obs_space(
                 shape=(self.task.task_obs_dim,), low=-np.inf, high=np.inf
+            )
+        if "waypoints" in self.output:
+            observation_space["waypoints"] = self.build_obs_space(
+                shape=(self.waypoints_dim,), low=-np.inf, high=np.inf
             )
         if "rgb" in self.output:
             observation_space["rgb"] = self.build_obs_space(
@@ -286,6 +291,9 @@ class Wp3TestEnv(BaseEnv):
             state["bump"] = self.sensors["bump"].get_obs(self)
         if "proprioception" in self.output:
             state["proprioception"] = np.array(self.robots[0].get_proprioception())
+        if "waypoints" in self.output:
+            if isinstance(self.task, GoToObjectTask):
+                state["waypoints"] = np.array(self.task.get_waypoints(self, 1))
 
         return state
 

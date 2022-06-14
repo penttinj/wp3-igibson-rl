@@ -26,6 +26,7 @@ class GoToObjectTask(BaseTask):
     """
 
     def __init__(self, env):
+        logging.basicConfig(level=logging.INFO)
         print("GoToObjectTask: init")
         super(GoToObjectTask, self).__init__(env)
         self.reward_type = self.config.get("reward_type", "l2")
@@ -69,7 +70,7 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         """
         print("Env mode=", env.mode)
-        if env.mode != "gui":
+        if env.mode != "gui_interactive":
             return
 
         cyl_length = 0.2
@@ -88,12 +89,13 @@ class GoToObjectTask(BaseTask):
             initial_offset=[0, 0, cyl_length / 2.0],
         )
 
-        # if self.target_visual_object_visible_to_agent:
-        env.simulator.import_object(self.initial_pos_vis_obj)
-        env.simulator.import_object(self.target_pos_vis_obj)
-        # else:
-        #    self.initial_pos_vis_obj.load(env.simulator)
-        #    self.target_pos_vis_obj.load(env.simulator)
+        if self.visible_target:
+            print("Importing visible objects")
+            env.simulator.import_object(self.initial_pos_vis_obj)
+            env.simulator.import_object(self.target_pos_vis_obj)
+        else:
+            self.initial_pos_vis_obj.load(env.simulator)
+            self.target_pos_vis_obj.load(env.simulator)
 
         # The visual object indicating the initial location is always hidden
         for instance in self.initial_pos_vis_obj.renderer_instances:
@@ -104,8 +106,7 @@ class GoToObjectTask(BaseTask):
             instance.hidden = not self.visible_target
 
         if env.scene.build_graph:
-            print("build_graph is true")
-            self.num_waypoints_vis = 250
+            self.num_waypoints_vis = 1
             self.waypoints_vis = [
                 VisualMarker(
                     visual_shape=p.GEOM_CYLINDER,
@@ -129,7 +130,7 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: geodesic distance to the target position
         """
-        _, geodesic_dist = self.get_shortest_path(env)
+        _, geodesic_dist = self.get_shortest_path(env=env, target_position=self.shortest_path[0])
         return geodesic_dist
 
     def get_l2_potential(self, env):
@@ -139,7 +140,7 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: L2 distance to the target position
         """
-        return l2_distance(env.robots[0].get_position()[:2], self.target_pos[:2])
+        return l2_distance(env.robots[0].get_position()[:2], self.waypoints[0]) # self.target_pos[:2]
 
     def get_potential(self, env):
         """
@@ -159,11 +160,15 @@ class GoToObjectTask(BaseTask):
 
             bounds: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
-        obj = YCBObject(obj_url)
-        env.simulator.import_object(obj)
-        self.reset_goal(env, obj, bounds)
+        #obj = YCBObject(obj_url)
+        obj2 = YCBObject("005_tomato_soup_can")
+        print("obj2=", obj2)
+        #env.simulator.import_object(obj)
+        env.simulator.import_object(obj2)
+        #self.reset_goal(env, obj, bounds)
+        self.reset_goal(env, obj2, bounds)
 
-        return obj
+        return obj2
 
     def reset_goal(self, env, obj, bounds=None, floor=0):
         """
@@ -175,6 +180,7 @@ class GoToObjectTask(BaseTask):
         max_trials = 300
         state_id = -1
 
+        # Check if the target should be placed on completely random point in the scene
         if self.random_nav:
             state_id = p.saveState()
             for _ in range(max_trials):
@@ -184,6 +190,7 @@ class GoToObjectTask(BaseTask):
                 p.restoreState(state_id)
                 if reset_success:
                     break
+        # Else the target shall be spawned within a specific area
         else:
             if bounds is None:
                 pos = [1, 1, 0.05]
@@ -217,6 +224,7 @@ class GoToObjectTask(BaseTask):
         dist = 0.0
         initial_pos = ()
         initial_orn = np.array([0, 0, np.random.uniform(0, np.pi * 2)])
+        state_id = p.saveState()
         for _ in range(max_trials):
             _, initial_pos = env.scene.get_random_point(floor=self.floor_num)
             if env.scene.build_graph:
@@ -235,6 +243,7 @@ class GoToObjectTask(BaseTask):
             logging.warning("Failed to find landable robot position")
         if env.config.get("debug", False):
             logging.debug("Sampled initial pose: {}, {}".format(initial_pos, initial_orn))
+        p.restoreState(state_id)
         return initial_pos, initial_orn
 
     def reset_scene(self, env):
@@ -251,7 +260,6 @@ class GoToObjectTask(BaseTask):
         self.reset_goal(
             env=env, obj=self.goal_object, bounds=self.spawn_bounds, floor=self.floor_num
         )
-
 
     def reset_agent(self, env):
         """
@@ -319,29 +327,56 @@ class GoToObjectTask(BaseTask):
 
         return task_obs
 
-    def get_shortest_path(self, env, from_initial_pos=False, entire_path=False):
+    def get_shortest_path(self, env, from_initial_pos=False, entire_path=False, target_position=None):
         """
         Get the shortest path and geodesic distance from the robot or the initial position to the target position
 
         :param env: environment instance
         :param from_initial_pos: whether source is initial position rather than current position
         :param entire_path: whether to return the entire shortest path
+        :param target_position: (List(x,y)) task goal position if not specified, else must be [x,y] coordinates
         :return: shortest path and geodesic distance to the target position
         """
         if from_initial_pos:
             source = self.initial_pos[:2]
         else:
             source = env.robots[0].get_position()[:2]
-        target = self.target_pos[:2]
+        if target_position is None:
+            target = self.target_pos[:2]
+        else:
+            target = target_position
         return env.scene.get_shortest_path(self.floor_num, source, target, entire_path=entire_path)
+
+    def get_waypoints(self, env, n=1) -> np.ndarray:
+        """
+        Get the route planner's waypoints
+
+        :param env: environment instance
+        :return: (ndarray) list of n closest waypoints
+        """
+        if not env.scene.build_graph:
+            logging.error("[GoToObjectTask:get_waypoints]env.scene.build_graph is False")
+            return  # type: ignore
+
+        shortest_path, _ = self.get_shortest_path(env, entire_path=True)
+        self.shortest_path = shortest_path
+        waypoints = shortest_path[0:n]
+        waypoints = [self.global_to_local(env, [waypoint[0], waypoint[1], 0])[:2] for waypoint in waypoints]
+        waypoints = [cartesian_to_polar(waypoint[0], waypoint[1]) for waypoint in waypoints]
+        waypoints = np.array(waypoints).flatten()
+        #logging.debug("[go_to_object_task:get_waypoints] shortest_path=", shortest_path)
+        #logging.debug("[go_to_object_task:get_waypoints] waypoints=", waypoints)
+        return waypoints
 
     def step_visualization(self, env):
         """
         Step visualization
 
         :param env: environment instance
+        :param n: number of waypoints to return
         """
-        if env.mode != "gui":
+        self.get_waypoints(env, self.config.get("num_waypoints", 1))
+        if env.mode != "gui_interactive":
             return
 
         self.initial_pos_vis_obj.set_position(self.initial_pos)
@@ -349,6 +384,7 @@ class GoToObjectTask(BaseTask):
 
         if env.scene.build_graph:
             shortest_path, _ = self.get_shortest_path(env, entire_path=True)
+            # print("waypoints shortest_path=", shortest_path)
             floor_height = env.scene.get_floor_height(self.floor_num)
             num_nodes = min(self.num_waypoints_vis, shortest_path.shape[0])
             for i in range(num_nodes):
@@ -368,3 +404,8 @@ class GoToObjectTask(BaseTask):
         new_robot_pos = env.robots[0].get_position()[:2]
         self.path_length += l2_distance(self.robot_pos, new_robot_pos)
         self.robot_pos = new_robot_pos
+
+    def reset(self, env):
+        print("asdfasdfasdf")
+        self.get_waypoints(env, self.config.get("num_waypoints", 1))
+        super(GoToObjectTask, self).reset(env)

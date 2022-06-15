@@ -140,7 +140,9 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: L2 distance to the target position
         """
-        return l2_distance(env.robots[0].get_position()[:2], self.waypoints[0]) # self.target_pos[:2]
+        return l2_distance(
+            env.robots[0].get_position()[:2], self.waypoints[0]
+        )  # self.target_pos[:2]
 
     def get_potential(self, env):
         """
@@ -160,12 +162,12 @@ class GoToObjectTask(BaseTask):
 
             bounds: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
-        #obj = YCBObject(obj_url)
+        # obj = YCBObject(obj_url)
         obj2 = YCBObject("005_tomato_soup_can")
         print("obj2=", obj2)
-        #env.simulator.import_object(obj)
+        # env.simulator.import_object(obj)
         env.simulator.import_object(obj2)
-        #self.reset_goal(env, obj, bounds)
+        # self.reset_goal(env, obj, bounds)
         self.reset_goal(env, obj2, bounds)
 
         return obj2
@@ -327,7 +329,9 @@ class GoToObjectTask(BaseTask):
 
         return task_obs
 
-    def get_shortest_path(self, env, from_initial_pos=False, entire_path=False, target_position=None):
+    def get_shortest_path(
+        self, env, from_initial_pos=False, entire_path=False, target_position=None
+    ):
         """
         Get the shortest path and geodesic distance from the robot or the initial position to the target position
 
@@ -361,11 +365,13 @@ class GoToObjectTask(BaseTask):
         shortest_path, _ = self.get_shortest_path(env, entire_path=True)
         self.shortest_path = shortest_path
         waypoints = shortest_path[0:n]
-        waypoints = [self.global_to_local(env, [waypoint[0], waypoint[1], 0])[:2] for waypoint in waypoints]
+        waypoints = [
+            self.global_to_local(env, [waypoint[0], waypoint[1], 0])[:2] for waypoint in waypoints
+        ]
         waypoints = [cartesian_to_polar(waypoint[0], waypoint[1]) for waypoint in waypoints]
         waypoints = np.array(waypoints).flatten()
-        #logging.debug("[go_to_object_task:get_waypoints] shortest_path=", shortest_path)
-        #logging.debug("[go_to_object_task:get_waypoints] waypoints=", waypoints)
+        # logging.debug("[go_to_object_task:get_waypoints] shortest_path=", shortest_path)
+        # logging.debug("[go_to_object_task:get_waypoints] waypoints=", waypoints)
         return waypoints
 
     def step_visualization(self, env):
@@ -375,7 +381,6 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :param n: number of waypoints to return
         """
-        self.get_waypoints(env, self.config.get("num_waypoints", 1))
         if env.mode != "gui_interactive":
             return
 
@@ -406,6 +411,5 @@ class GoToObjectTask(BaseTask):
         self.robot_pos = new_robot_pos
 
     def reset(self, env):
-        print("asdfasdfasdf")
         self.get_waypoints(env, self.config.get("num_waypoints", 1))
         super(GoToObjectTask, self).reset(env)

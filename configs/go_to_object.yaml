@@ -52,7 +52,7 @@ spawn_bounds: [[-2.7, -0.7],[5.0, 12.5]] # Plessis scene coordinates
 # reward
 reward_type: geodesic
 success_reward: 10.0
-potential_reward_weight: 1.0
+potential_reward_weight: 0.1
 collision_reward_weight: -0.1
 
 # discount factor
@@ -100,7 +100,7 @@ num_waypoints: 1
 
 # visual objects
 visible_target: false
-visible_path: true
+visible_path: false
 
 # TODO: Learning configuration
 # num_envs, algorithm, network arch etc

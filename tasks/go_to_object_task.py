@@ -106,7 +106,7 @@ class GoToObjectTask(BaseTask):
             instance.hidden = not self.visible_target
 
         if env.scene.build_graph:
-            self.num_waypoints_vis = 1
+            self.num_waypoints_vis = 5
             self.waypoints_vis = [
                 VisualMarker(
                     visual_shape=p.GEOM_CYLINDER,
@@ -162,15 +162,13 @@ class GoToObjectTask(BaseTask):
 
             bounds: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
-        # obj = YCBObject(obj_url)
-        obj2 = YCBObject("005_tomato_soup_can")
-        print("obj2=", obj2)
-        # env.simulator.import_object(obj)
-        env.simulator.import_object(obj2)
-        # self.reset_goal(env, obj, bounds)
-        self.reset_goal(env, obj2, bounds)
+        obj = YCBObject(obj_url)
+        #obj2 = YCBObject("005_tomato_soup_can")
+        env.simulator.import_object(obj)
+        #env.simulator.import_object(obj2)
+        self.reset_goal(env, obj, bounds)
 
-        return obj2
+        return obj
 
     def reset_goal(self, env, obj, bounds=None, floor=0):
         """
@@ -246,6 +244,7 @@ class GoToObjectTask(BaseTask):
         if env.config.get("debug", False):
             logging.debug("Sampled initial pose: {}, {}".format(initial_pos, initial_orn))
         p.restoreState(state_id)
+        p.removeState(state_id)
         return initial_pos, initial_orn
 
     def reset_scene(self, env):

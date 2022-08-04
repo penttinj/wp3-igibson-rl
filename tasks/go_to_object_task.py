@@ -50,10 +50,10 @@ class GoToObjectTask(BaseTask):
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
         self.random_nav = self.config.get("random_nav", False)
-        print("spawn_bounds=", self.config.get("spawn_bounds"))
         self.goal_object = self.load_goal_object(
             env, self.config.get("target_object", "003_cracker_box"), self.spawn_bounds
         )
+        print(f"{self.goal_object=}")
 
         self.visible_target = self.config.get("visible_target", False)
         self.visible_path = self.config.get("visible_path", False)

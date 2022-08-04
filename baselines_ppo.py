@@ -8,7 +8,8 @@ import time
 from typing import Callable
 from subprocess import run
 
-import igibson
+from igibson.utils.utils import parse_config
+
 from envs.wp3_test_env import Wp3TestEnv
 
 try:
@@ -27,7 +28,6 @@ try:
 except ModuleNotFoundError:
     print("stable-baselines3 is not installed. You would need to do: pip install stable-baselines3")
     exit(1)
-
 """
 Example training code using stable-baselines3 PPO for PointNav task.
 """
@@ -49,7 +49,7 @@ parser.add_argument(
     help="number of steps interval between checkpoints",
 )
 parser.add_argument(
-    "-n", "--num_envs", default=8, type=int, help="number of parallell environments",
+    "-n", "--num_envs", default=8, type=int, help="number of parallel environments",
 )
 parser.add_argument(
     "-m", "--model", type=str, help="path to a saved model(.zip file)",
@@ -146,8 +146,25 @@ def get_latest_ckpt(log_dir: str, log_name: str, ckpt_root_dir: str):
     return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
 
 
+def get_config(config_path: str):
+    config = parse_config(config_path)
+    data = {
+        "num_envs": config.get("num_envs", args.num_envs),
+    }
+    # Assignment expression syntax https://stackoverflow.com/a/2604036
+    if batch_size := config.get("batch_size"):
+        data["batch_size"] = batch_size
+    if gamma := config.get("gamma"):
+        data["gamma"] = gamma
+    if learning_rate := config.get("learning_rate"):
+        data["learning_rate"] = learning_rate
+    return data
+
+
 def main(
     config_file: str,
+    hyperparameters,
+    num_envs=6,
     training: bool = True,
     num_steps: int = 80000,
     checkpoint_interval: int = 20000,
@@ -167,8 +184,7 @@ def main(
     checkpoint_dir = os.path.join(
         root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
     )
-    num_environments = args.num_envs
-    checkpoint_freq = checkpoint_interval // num_environments
+    checkpoint_freq = checkpoint_interval // num_envs
     checkpoint_cb = CheckpointCallback(
         save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
     )
@@ -191,7 +207,7 @@ def main(
 
     if training:
         # Multiprocess
-        env = SubprocVecEnv([make_env(i) for i in range(num_environments)])
+        env = SubprocVecEnv([make_env(i) for i in range(num_envs)])
         env = VecMonitor(env)
 
         # Create a new environment for evaluation
@@ -224,18 +240,13 @@ def main(
                 verbose=1,
                 tensorboard_log=tensorboard_log_dir,
                 policy_kwargs=policy_kwargs,
-                batch_size=256,
+                **hyperparameters,
             )
             if args.model is None
             else PPO.load(
-                args.model,
-                env,
-                verbose=1,
-                tensorboard_log=tensorboard_log_dir,
-                batch_size=256,
+                args.model, env, verbose=1, tensorboard_log=tensorboard_log_dir, batch_size=256,
             )
         )
-        print(f"{model.policy=}")
 
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
@@ -274,9 +285,15 @@ def main(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    config = get_config(args.config)
+    num_envs = config["num_envs"]
+    del config["num_envs"]
+    print(f"{num_envs=}")
     main(
         config_file=args.config,
         training=args.training,
+        num_envs=num_envs,
         num_steps=args.steps,
         checkpoint_interval=args.checkpoint_interval,
+        hyperparameters=config,
     )

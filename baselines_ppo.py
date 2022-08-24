@@ -5,7 +5,7 @@ import sys
 import argparse
 from tabnanny import check
 import time
-from typing import Callable
+from typing import Callable, List, Union
 from subprocess import run
 
 from igibson.utils.utils import parse_config
@@ -179,10 +179,13 @@ def main(
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
 
+    simulation_scenes = ["Rs", "Plessis"]
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
-        root_dir, "checkpoints", f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), 'PPO')+1}"
+        root_dir,
+        "checkpoints",
+        f"PPO_{get_latest_run_id(os.path.join(root_dir, 'logs'), log_name='PPO')+1}",
     )
     checkpoint_freq = checkpoint_interval // num_envs
     checkpoint_cb = CheckpointCallback(
@@ -190,10 +193,12 @@ def main(
     )
 
     # Function callback to create environments
-    def make_env(rank: int, seed: int = 0) -> Callable:
+    def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None]=None) -> Callable:
         def _init() -> Wp3TestEnv:
+            scene = None if scenes is None else scenes[rank % 2]
             env = Wp3TestEnv(
                 config_file=config_file,
+                scene_id=scene,
                 mode="headless",
                 action_timestep=1 / 10.0,
                 physics_timestep=1 / 120.0,
@@ -207,9 +212,8 @@ def main(
 
     if training:
         # Multiprocess
-        env = SubprocVecEnv([make_env(i) for i in range(num_envs)])
+        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(num_envs)])
         env = VecMonitor(env)
-
         # Create a new environment for evaluation
         eval_env = SubprocVecEnv(
             [

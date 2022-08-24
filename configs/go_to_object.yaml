@@ -35,7 +35,10 @@ target_dist_min: 1.0
 target_dist_max: 10.0
 random_nav: true # Picks a random position through the whole scene instead of using spawn_bounds
 goal_format: polar
-task_obs_dim: 4
+# Sets goal position x,y coordinates as an available observation
+# Add 2 more dimensions to task_obs_dim if enabled
+goal_observable: false
+task_obs_dim: 2 # 4
 initial_pos: [-2.7, 1.1, 0]
 #initial_pos: [0, 0, 0]
 target_pos: [1, 1, 0]

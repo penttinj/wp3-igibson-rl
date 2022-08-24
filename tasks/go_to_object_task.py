@@ -61,7 +61,8 @@ class GoToObjectTask(BaseTask):
 
         # print("[GoToObject init] configs:", f"{self.config.get('visible_target')=}")
 
-        self.load_visualization(env)
+        if self.visible_path or self.visible_target:
+            self.load_visualization(env)
 
     def load_visualization(self, env):
         """
@@ -105,7 +106,7 @@ class GoToObjectTask(BaseTask):
         for instance in self.target_pos_vis_obj.renderer_instances:
             instance.hidden = not self.visible_target
 
-        if env.scene.build_graph:
+        if env.scene.build_graph and self.visible_path:
             self.num_waypoints_vis = 5
             self.waypoints_vis = [
                 VisualMarker(
@@ -312,9 +313,12 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: task-specific observation
         """
-        task_obs = self.global_to_local(env, self.target_pos)[:2]
-        if self.goal_format == "polar":
-            task_obs = np.array(cartesian_to_polar(task_obs[0], task_obs[1]))
+        task_obs = np.array([])
+        # If false, omits the target position coordinates from task_obs
+        if self.config.get("goal_observable", True):
+            task_obs = self.global_to_local(env, self.target_pos)[:2]
+            if self.goal_format == "polar":
+                task_obs = np.array(cartesian_to_polar(task_obs[0], task_obs[1]))
 
         # linear velocity along the x-axis
         linear_velocity = rotate_vector_3d(
@@ -386,7 +390,7 @@ class GoToObjectTask(BaseTask):
         self.initial_pos_vis_obj.set_position(self.initial_pos)
         self.target_pos_vis_obj.set_position(self.target_pos)
 
-        if env.scene.build_graph:
+        if env.scene.build_graph and self.visible_path:
             shortest_path, _ = self.get_shortest_path(env, entire_path=True)
             # print("waypoints shortest_path=", shortest_path)
             floor_height = env.scene.get_floor_height(self.floor_num)
@@ -404,7 +408,8 @@ class GoToObjectTask(BaseTask):
 
         :param env: environment instance
         """
-        self.step_visualization(env)
+        if self.visible_path or self.visible_target:
+            self.step_visualization(env)
         new_robot_pos = env.robots[0].get_position()[:2]
         self.path_length += l2_distance(self.robot_pos, new_robot_pos)
         self.robot_pos = new_robot_pos

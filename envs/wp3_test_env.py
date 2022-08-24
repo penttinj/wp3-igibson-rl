@@ -61,6 +61,7 @@ class Wp3TestEnv(BaseEnv):
         :param automatic_reset: whether to automatic reset after an episode finishes
         :param use_pb_gui: concurrently display the interactive pybullet gui (for debugging)
         """
+        print("SCENE_ID=", scene_id)
         super(Wp3TestEnv, self).__init__(
             config_file=config_file,
             scene_id=scene_id,

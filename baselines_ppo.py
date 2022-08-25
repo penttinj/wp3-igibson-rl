@@ -162,7 +162,7 @@ def get_config(config_path: str):
 
 
 def main(
-    config_file: str,
+    config_path: str,
     hyperparameters,
     num_envs=6,
     training: bool = True,
@@ -179,7 +179,8 @@ def main(
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
 
-    simulation_scenes = ["Rs", "Plessis"]
+    conf = parse_config(config_path)
+    simulation_scenes = conf.get("multiple_scenes", None)
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
@@ -197,7 +198,7 @@ def main(
         def _init() -> Wp3TestEnv:
             scene = None if scenes is None else scenes[rank % 2]
             env = Wp3TestEnv(
-                config_file=config_file,
+                config_file=config_path,
                 scene_id=scene,
                 mode="headless",
                 action_timestep=1 / 10.0,
@@ -218,7 +219,7 @@ def main(
         eval_env = SubprocVecEnv(
             [
                 lambda: Wp3TestEnv(
-                    config_file=config_file,
+                    config_file=config_path,
                     mode="headless",
                     action_timestep=1 / 10.0,
                     physics_timestep=1 / 120.0,
@@ -235,7 +236,7 @@ def main(
         )
         os.makedirs(tensorboard_log_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
-        run(f"cp {config_file} {checkpoint_dir}", shell=True)
+        run(f"cp {config_path} {checkpoint_dir}", shell=True)
 
         model = (
             PPO(
@@ -268,10 +269,10 @@ def main(
         logging.info(f"Time taken for training {train_time} seconds")
     else:
         logging.info("Eval only mode")
-        logging.info(f"Using config {config_file}")
+        logging.info(f"Using config {config_path}")
         logging.info(f"Using model {args.model}")
         eval_env = Wp3TestEnv(
-            config_file=config_file,
+            config_file=config_path,
             mode="gui_interactive",
             action_timestep=1 / 10.0,
             physics_timestep=1 / 120.0,
@@ -294,7 +295,7 @@ if __name__ == "__main__":
     del config["num_envs"]
     print(f"{num_envs=}")
     main(
-        config_file=args.config,
+        config_path=args.config,
         training=args.training,
         num_envs=num_envs,
         num_steps=args.steps,

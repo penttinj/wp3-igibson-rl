@@ -196,7 +196,7 @@ def main(
     # Function callback to create environments
     def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None]=None) -> Callable:
         def _init() -> Wp3TestEnv:
-            scene = None if scenes is None else scenes[rank % 2]
+            scene = None if scenes is None else scenes[rank % len(scenes)]
             env = Wp3TestEnv(
                 config_file=config_path,
                 scene_id=scene,
@@ -213,7 +213,7 @@ def main(
 
     if training:
         # Multiprocess
-        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(num_envs)])
+        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(1, num_envs + 1)])
         env = VecMonitor(env)
         # Create a new environment for evaluation
         eval_env = SubprocVecEnv(

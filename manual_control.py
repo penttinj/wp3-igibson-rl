@@ -8,9 +8,8 @@ from typing import Callable, List, Union
 from subprocess import run
 from Actions import Actions
 import curses
-from curses import wrapper
+from curses import wrapper, window
 import asyncio
-
 
 try:
     import gym
@@ -27,8 +26,12 @@ except ModuleNotFoundError as e:
 def create_action(yaw=0.0, translation=0.0):
     return [translation * 0.3, yaw * 0.3]
 
+def log(s):
+    with open("log.txt", "a") as f:
+        f.write(f"{'-'*10}\n")
+        f.write(f"[{time.asctime()}] {s}\n")
 
-def main(stdscr, config_path):
+def main(stdscr: window, config_path: str):
     stdscr.nodelay(True)
     env = Wp3TestEnv(
         config_file=config_path,
@@ -36,38 +39,31 @@ def main(stdscr, config_path):
         action_timestep=1 / 10.0,
         physics_timestep=1 / 120.0,
     )
+    action_list = {
+        ord("w"): create_action(translation=Actions.FORWARD),
+        ord("s"): create_action(translation=Actions.BACKWARD),
+        ord("a"): create_action(yaw=Actions.LEFT),
+        ord("d"): create_action(yaw=Actions.RIGHT),
+    }
     state = env.reset()
-    # a = {"forward": 1.0, "backward": -1.0, "right": 1.0,
-    # "left": -1.0} # make into enum
-    #action_space = env.action_space
+    log(state)
     start = time.time()
+    
     while True:
-        action = ""
         stdscr.refresh()
         key = stdscr.getch()
-        if key == ord("w"):
-            action = create_action(translation=Actions.FORWARD)
-        elif key == ord("s"):
-            action = create_action(translation=Actions.BACKWARD)
-        elif key == ord("a"):
-            action = create_action(yaw=Actions.LEFT)
-        elif key == ord("d"):
-            action = create_action(yaw=Actions.RIGHT)
+
+        if key in action_list.keys():
+            action = action_list[key]
+        elif key == ord("q"):
+            sys.exit(0)
         else:
             action = create_action()
-        if action == "":
-            action = None
+
         state, reward, done, _ = env.step(action)
         if done:
-            stdscr.addstr(0, 0, "Episode has finished running.",
-              curses.A_REVERSE)
-            stdscr.refresh()
-            #break
-    print(
-       "Episode finished after {} timesteps, took {} seconds.".format(
-           env.current_step, time.time() - start
-       )
-    )
+            break
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

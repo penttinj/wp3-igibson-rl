@@ -48,7 +48,9 @@ def main(stdscr: window, config_path: str):
     state = env.reset()
     log(state)
     start = time.time()
-    
+    stdscr.addstr(0, 0, "Input ready. Use WASD for steering, Q to quit.", curses.A_REVERSE)
+    stdscr.refresh()
+
     while True:
         stdscr.refresh()
         key = stdscr.getch()
@@ -61,8 +63,18 @@ def main(stdscr: window, config_path: str):
             action = create_action()
 
         state, reward, done, _ = env.step(action)
+        stdscr.addstr(1, 0, f"Rewards: {reward}")
+        stdscr.addstr(2, 0, f"Info: {_}")
+        stdscr.addstr(3, 0, f"Waypoints obs: {state['waypoints']}")
+        stdscr.refresh()
         if done:
-            break
+            stdscr.addstr(
+                4,
+                0,
+                f"Episode done.\nEpisode finished after {env.current_step} timesteps\
+, took {time.time() - start} seconds.\nPress Q to quit or continue exploring",
+            )
+            stdscr.refresh()
 
 
 if __name__ == "__main__":

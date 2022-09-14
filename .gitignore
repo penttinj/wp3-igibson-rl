@@ -9,5 +9,5 @@ results_baselines/
 igibson/
 igibson
 data/
-input_test.py
 log.txt
+input_test.py

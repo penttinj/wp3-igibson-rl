@@ -142,7 +142,7 @@ class GoToObjectTask(BaseTask):
         :return: L2 distance to the target position
         """
         return l2_distance(
-            env.robots[0].get_position()[:2], self.waypoints[0]
+            env.robots[0].get_position()[:2], self.shortest_path[0]
         )  # self.target_pos[:2]
 
     def get_potential(self, env):
@@ -354,7 +354,7 @@ class GoToObjectTask(BaseTask):
             target = target_position
         return env.scene.get_shortest_path(self.floor_num, source, target, entire_path=entire_path)
 
-    def get_waypoints(self, env, n=1) -> np.ndarray:
+    def get_polar_waypoints(self, env, n=1) -> np.ndarray:
         """
         Get the route planner's waypoints
 
@@ -415,5 +415,5 @@ class GoToObjectTask(BaseTask):
         self.robot_pos = new_robot_pos
 
     def reset(self, env):
-        self.get_waypoints(env, self.config.get("num_waypoints", 1))
+        self.polar_waypoints = self.get_polar_waypoints(env, self.config.get("num_waypoints", 1))
         super(GoToObjectTask, self).reset(env)

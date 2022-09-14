@@ -294,7 +294,7 @@ class Wp3TestEnv(BaseEnv):
             state["proprioception"] = np.array(self.robots[0].get_proprioception())
         if "waypoints" in self.output:
             if isinstance(self.task, GoToObjectTask):
-                state["waypoints"] = np.array(self.task.get_waypoints(self, 1))
+                state["waypoints"] = np.array(self.task.get_polar_waypoints(self, 1))
 
         return state
 

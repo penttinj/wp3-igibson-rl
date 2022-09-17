@@ -63,9 +63,15 @@ def main(stdscr: window, config_path: str):
             action = create_action()
 
         state, reward, done, _ = env.step(action)
+
+        max_y, max_x = stdscr.getmaxyx()
+        stdscr.addstr(1, 0, " "*max_x)
+        stdscr.addstr(2, 0, " "*max_x)
+        stdscr.addstr(3, 0, " "*max_x)
         stdscr.addstr(1, 0, f"Rewards: {reward}")
         stdscr.addstr(2, 0, f"Info: {_}")
         stdscr.addstr(3, 0, f"Waypoints obs: {state['waypoints']}")
+        stdscr.addstr(max_y-1, 0, f"Screen size: {max_x} x {max_y}")
         stdscr.refresh()
         if done:
             stdscr.addstr(

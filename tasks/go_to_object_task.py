@@ -50,10 +50,6 @@ class GoToObjectTask(BaseTask):
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
         self.random_nav = self.config.get("random_nav", False)
-        self.goal_object = self.load_goal_object(
-            env, self.config.get("target_object", "003_cracker_box"), self.spawn_bounds
-        )
-        print(f"{self.goal_object=}")
 
         self.visible_target = self.config.get("visible_target", False)
         self.visible_path = self.config.get("visible_path", False)
@@ -63,7 +59,10 @@ class GoToObjectTask(BaseTask):
 
         if self.visible_path or self.visible_target:
             self.load_visualization(env)
-
+        self.goal_object = self.load_goal_object(
+            env, self.config.get("target_object", "003_cracker_box"), self.spawn_bounds
+        )
+        print(f"{self.goal_object=}")
     def load_visualization(self, env):
         """
         Load visualization, such as initial and target position, shortest path, etc
@@ -94,9 +93,9 @@ class GoToObjectTask(BaseTask):
             print("Importing visible objects")
             env.simulator.import_object(self.initial_pos_vis_obj)
             env.simulator.import_object(self.target_pos_vis_obj)
-        else:
-            self.initial_pos_vis_obj.load(env.simulator)
-            self.target_pos_vis_obj.load(env.simulator)
+        #else:
+        #    self.initial_pos_vis_obj.load(env.simulator)
+        #    self.target_pos_vis_obj.load(env.simulator)
 
         # The visual object indicating the initial location is always hidden
         for instance in self.initial_pos_vis_obj.renderer_instances:
@@ -386,9 +385,9 @@ class GoToObjectTask(BaseTask):
         """
         if env.mode != "gui_interactive":
             return
-
-        self.initial_pos_vis_obj.set_position(self.initial_pos)
-        self.target_pos_vis_obj.set_position(self.target_pos)
+        if self.visible_target:
+            self.initial_pos_vis_obj.set_position(self.initial_pos)
+            self.target_pos_vis_obj.set_position(self.target_pos)
 
         if env.scene.build_graph and self.visible_path:
             shortest_path, _ = self.get_shortest_path(env, entire_path=True)

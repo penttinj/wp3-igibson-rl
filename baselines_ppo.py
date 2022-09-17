@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import logging
 import math
 import os
@@ -145,7 +147,7 @@ def get_latest_ckpt(log_dir: str, log_name: str, ckpt_root_dir: str):
     return os.path.join(ckpt_run_dir, f"{ckpt_name}_"), get_latest_run_id(ckpt_run_dir, ckpt_name)
 
 
-def get_config(config_path: str):
+def get_hyperparams(config_path: str):
     config = parse_config(config_path)
     data = {
         "num_envs": config.get("num_envs", args.num_envs),
@@ -163,6 +165,7 @@ def get_config(config_path: str):
 def main(
     config_file: str,
     hyperparameters,
+    simulation_scenes=None,
     num_envs=6,
     training: bool = True,
     num_steps: int = 80000,
@@ -178,7 +181,6 @@ def main(
         math.floor(num_steps / checkpoint_interval) > 0
     ), "Number of steps must be larger than checkpoint interval"
 
-    simulation_scenes = ["Rs", "Plessis"]
     root_dir = "results_baselines"
     tensorboard_log_dir = os.path.join(root_dir, "logs")
     checkpoint_dir = os.path.join(
@@ -194,7 +196,7 @@ def main(
     # Function callback to create environments
     def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None]=None) -> Callable:
         def _init() -> Wp3TestEnv:
-            scene = None if scenes is None else scenes[rank % 2]
+            scene = None if scenes is None else scenes[rank % len(scenes)]
             env = Wp3TestEnv(
                 config_file=config_file,
                 scene_id=scene,
@@ -211,7 +213,7 @@ def main(
 
     if training:
         # Multiprocess
-        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(num_envs)])
+        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(1, num_envs + 1)])
         env = VecMonitor(env)
         # Create a new environment for evaluation
         eval_env = SubprocVecEnv(
@@ -288,15 +290,18 @@ def main(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    config = get_config(args.config)
-    num_envs = config["num_envs"]
-    del config["num_envs"]
+    config = parse_config(args.config)
+    hyperparams = get_hyperparams(args.config)
+    num_envs = hyperparams["num_envs"]
+    del hyperparams["num_envs"]
     print(f"{num_envs=}")
+    scenes = config.get("simulation_scenes", None)
     main(
         config_file=args.config,
         training=args.training,
         num_envs=num_envs,
         num_steps=args.steps,
         checkpoint_interval=args.checkpoint_interval,
-        hyperparameters=config,
+        hyperparameters=hyperparams,
+        simulation_scenes=scenes,
     )

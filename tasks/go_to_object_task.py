@@ -130,7 +130,7 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: geodesic distance to the target position
         """
-        _, geodesic_dist = self.get_shortest_path(env=env, target_position=self.shortest_path[0])
+        _, geodesic_dist = self.get_shortest_path(env=env)
         return geodesic_dist
 
     def get_l2_potential(self, env):

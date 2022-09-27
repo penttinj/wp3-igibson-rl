@@ -151,7 +151,9 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         :return: task potential
         """
-        if self.reward_type == "l2":
+        if self.reward_type == "waypoint":
+            return self.get_l2_potential(env)
+        elif self.reward_type == "l2":
             return self.get_l2_potential(env)
         elif self.reward_type == "geodesic":
             return self.get_geodesic_potential(env)

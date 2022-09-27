@@ -252,7 +252,7 @@ def main(
                 args.model, env, verbose=1, tensorboard_log=tensorboard_log_dir, batch_size=256,
             )
         )
-
+        
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")

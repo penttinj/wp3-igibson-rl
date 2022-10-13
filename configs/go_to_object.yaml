@@ -101,7 +101,7 @@ depth_noise_rate: 0.0
 scan_noise_rate: 0.0
 
 # waypoints specs
-num_waypoints: 1
+num_waypoints: 6
 
 # visual objects
 visible_target: false

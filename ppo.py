@@ -232,7 +232,7 @@ def main(
         # Obtain the arguments/parameters for the policy and create the PPO model
         policy_kwargs = dict(
             features_extractor_class=CustomCombinedExtractor,
-            net_arch=[dict(pi=[512, 512, 512], vf=[512, 512, 512])],
+            net_arch=[512, 512, 512, dict(pi=[1024, 1024], vf=[1024, 1024])],
         )
         os.makedirs(tensorboard_log_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -252,6 +252,7 @@ def main(
                 args.model, env, verbose=1, tensorboard_log=tensorboard_log_dir, batch_size=256,
             )
         )
+        print(model.__dict__)
         
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
@@ -273,18 +274,18 @@ def main(
         logging.info(f"Using model {args.model}")
         eval_env = Wp3TestEnv(
             config_file=config_file,
-            mode="gui_interactive",
+            mode="headless",
             action_timestep=1 / 10.0,
             physics_timestep=1 / 120.0,
         )
         # Reset camera position to the middle of the scene
-        s = eval_env.simulator
-        s.viewer.initial_pos = [0, 0, 1]
-        s.viewer.initial_view_direction = [0.6, -0.8, -0.3]
-        s.viewer.reset_viewer()
+        # s = eval_env.simulator
+        # s.viewer.initial_pos = [0, 0, 1]
+        # s.viewer.initial_view_direction = [0.6, -0.8, -0.3]
+        # s.viewer.reset_viewer()
         eval_env = Monitor(eval_env)
         model = PPO.load(args.model)
-        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=40)
+        mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=20)
         print(f"Mean reward: {mean_reward} +/- {std_reward:.2f}")
 
 

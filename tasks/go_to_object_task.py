@@ -50,6 +50,7 @@ class GoToObjectTask(BaseTask):
         self.goal_format = self.config.get("goal_format", "polar")
         self.dist_tol = self.termination_conditions[-1].dist_tol
         self.random_nav = self.config.get("random_nav", False)
+        self.steps = 0
 
         self.visible_target = self.config.get("visible_target", False)
         self.visible_path = self.config.get("visible_path", False)
@@ -271,10 +272,11 @@ class GoToObjectTask(BaseTask):
         :param env: environment instance
         """
         if env.config.get("debug", False):
-            print("Resetting agent")
+            print(f"Resetting agent. Steps taken: {self.steps}")
         initial_pos, initial_orn = self.sample_initial_pose(env)
         self.initial_pos = initial_pos
         self.initial_orn = initial_orn
+        self.steps = 0
 
         env.land(env.robots[0], self.initial_pos, self.initial_orn)
         self.path_length = 0.0
@@ -374,8 +376,13 @@ class GoToObjectTask(BaseTask):
         ]
         waypoints = [cartesian_to_polar(waypoint[0], waypoint[1]) for waypoint in waypoints]
         waypoints = np.array(waypoints).flatten()
+        if len(waypoints) < 12:
+            temp = list(waypoints)
+            while len(temp) < 12:
+                temp.append(0)
+            waypoints = np.array(temp)
+
         # logging.debug("[go_to_object_task:get_waypoints] shortest_path=", shortest_path)
-        # logging.debug("[go_to_object_task:get_waypoints] waypoints=", waypoints)
         return waypoints
 
     def step_visualization(self, env):
@@ -414,6 +421,7 @@ class GoToObjectTask(BaseTask):
         new_robot_pos = env.robots[0].get_position()[:2]
         self.path_length += l2_distance(self.robot_pos, new_robot_pos)
         self.robot_pos = new_robot_pos
+        self.steps += 1
 
     def reset(self, env):
         self.polar_waypoints = self.get_polar_waypoints(env, self.config.get("num_waypoints", 1))

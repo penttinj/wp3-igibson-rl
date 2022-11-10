@@ -55,6 +55,9 @@ class GoToObjectTask(BaseTask):
         self.visible_target = self.config.get("visible_target", False)
         self.visible_path = self.config.get("visible_path", False)
         self.floor_num = 0
+        self.output = self.config.get("output")
+        if "recognition" in self.output:
+            self.recognition_dim = self.config.get("recognition_dim")
 
         # print("[GoToObject init] configs:", f"{self.config.get('visible_target')=}")
 

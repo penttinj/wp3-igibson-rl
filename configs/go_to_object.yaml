@@ -74,7 +74,7 @@ collision_ignore_link_a_ids: [1, 2, 3, 4]  # ignore collisions with these robot 
 
 # sensor spec
 # output: [task_obs, rgb, depth, scan]
-output: [task_obs, scan, waypoints]
+output: [task_obs, scan, waypoints, recognition]
 # image
 # ASUS Xtion PRO LIVE
 # https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE
@@ -102,6 +102,9 @@ scan_noise_rate: 0.0
 
 # waypoints specs
 num_waypoints: 6
+
+# cv object recognition
+recognition_dim: 100
 
 # visual objects
 visible_target: false

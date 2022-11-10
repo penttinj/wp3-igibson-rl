@@ -165,6 +165,10 @@ class Wp3TestEnv(BaseEnv):
             observation_space["waypoints"] = self.build_obs_space(
                 shape=(self.waypoints_dim,), low=-np.inf, high=np.inf
             )
+        if "recognition" in self.output:
+            observation_space["recognition"] = self.build_obs_space(
+                shape=(self.task.recognition_dim,), low=0, high=1
+            )
         if "rgb" in self.output:
             observation_space["rgb"] = self.build_obs_space(
                 shape=(self.image_height, self.image_width, 3), low=0.0, high=1.0
@@ -296,7 +300,7 @@ class Wp3TestEnv(BaseEnv):
         if "waypoints" in self.output:
             if isinstance(self.task, GoToObjectTask):
                 state["waypoints"] = np.array(self.task.get_polar_waypoints(self, self.num_waypoints))
-
+        assert False, "TODO: Implement object recognition based on rgb"
         return state
 
     def run_simulation(self):

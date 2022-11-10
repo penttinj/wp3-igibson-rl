@@ -1,4 +1,5 @@
 igibson
-tf-agents
-tensorflow-gpu
+torch
+pillow
+torchvision
 

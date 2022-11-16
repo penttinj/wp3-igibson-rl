@@ -37,7 +37,11 @@ parser = argparse.ArgumentParser(
     description="Train a Turtlebot in an iGibson environment using PyTorch stable-baselines3's PPO"
 )
 parser.add_argument(
-    "-e", "--eval", dest="training", action="store_false", help="flag for running evaluation only",
+    "-e",
+    "--eval",
+    dest="training",
+    action="store_false",
+    help="flag for running evaluation only",
 )
 parser.add_argument(
     "-s", "--steps", metavar="NUM_STEPS", default=40000, type=int, help="number of steps to train"
@@ -50,13 +54,20 @@ parser.add_argument(
     help="number of steps interval between checkpoints",
 )
 parser.add_argument(
-    "-n", "--num_envs", default=8, type=int, help="number of parallel environments",
+    "-n",
+    "--num_envs",
+    default=8,
+    type=int,
+    help="number of parallel environments",
 )
 parser.add_argument(
-    "-m", "--model", type=str, help="path to a saved model(.zip file)",
+    "-m",
+    "--model",
+    type=str,
+    help="path to a saved model(.zip file)",
 )
 parser.add_argument(
-    "--config", default="configs/go_to_object.yaml", type=str, help="path to yaml config file"
+    "--config", default="../configs/go_to_object.yaml", type=str, help="path to yaml config file"
 )
 args = parser.parse_args()
 
@@ -73,7 +84,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         total_concat_size = 0
         feature_size = 256
         for key, subspace in observation_space.spaces.items():
-            if key in ["proprioception", "task_obs", "waypoints"]:
+            if key in ["proprioception", "task_obs", "waypoints", "recognition"]:
                 print(f"CustomCombinedExtractor: {key}, {subspace.shape[0]=}")
                 extractors[key] = nn.Sequential(
                     nn.Linear(subspace.shape[0], feature_size), nn.ReLU()
@@ -190,11 +201,13 @@ def main(
     )
     checkpoint_freq = checkpoint_interval // num_envs
     checkpoint_cb = CheckpointCallback(
-        save_freq=checkpoint_freq, save_path=checkpoint_dir, name_prefix="ppo_model",
+        save_freq=checkpoint_freq,
+        save_path=checkpoint_dir,
+        name_prefix="ppo_model",
     )
 
     # Function callback to create environments
-    def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None]=None) -> Callable:
+    def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None] = None) -> Callable:
         def _init() -> Wp3TestEnv:
             scene = None if scenes is None else scenes[rank % len(scenes)]
             env = Wp3TestEnv(
@@ -213,7 +226,9 @@ def main(
 
     if training:
         # Multiprocess
-        env = SubprocVecEnv([make_env(rank=i, scenes=simulation_scenes) for i in range(1, num_envs + 1)])
+        env = SubprocVecEnv(
+            [make_env(rank=i, scenes=simulation_scenes) for i in range(1, num_envs + 1)]
+        )
         env = VecMonitor(env)
         # Create a new environment for evaluation
         eval_env = SubprocVecEnv(
@@ -249,11 +264,15 @@ def main(
             )
             if args.model is None
             else PPO.load(
-                args.model, env, verbose=1, tensorboard_log=tensorboard_log_dir, batch_size=256,
+                args.model,
+                env,
+                verbose=1,
+                tensorboard_log=tensorboard_log_dir,
+                batch_size=256,
             )
         )
         print(model.__dict__)
-        
+
         # Random Agent, evaluation before training
         mean_reward, std_reward = evaluate_policy(model, eval_env, n_eval_episodes=1)
         print(f"Before Training: Mean reward: {mean_reward} +/- {std_reward:.2f}")

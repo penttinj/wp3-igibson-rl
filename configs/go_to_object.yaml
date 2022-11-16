@@ -116,4 +116,4 @@ visible_path: false
 batch_size: 1024
 gamma: 0.99
 learning_rate: 0.0003
-num_envs: 6
+#num_envs: 6

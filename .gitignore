@@ -1,6 +1,7 @@
 .directory
 .vscode
 __pychache__/
+.mypy_cache
 results/
 results_tfa/
 results_tfagents/

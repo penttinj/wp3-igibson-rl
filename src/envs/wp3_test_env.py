@@ -152,6 +152,7 @@ class Wp3TestEnv(BaseEnv):
         self.image_height = self.config.get("image_height", 128)
         self.num_waypoints: int = self.config.get("num_waypoints", 1)
         self.waypoints_dim: int = self.num_waypoints * 2 # n * 2 for x,y coords
+        self.recognition_dim: int = self.config.get("recognition_dim", 1000)
         observation_space = OrderedDict()
         sensors = OrderedDict()
         vision_modalities = []
@@ -167,8 +168,9 @@ class Wp3TestEnv(BaseEnv):
             )
         if "recognition" in self.output:
             observation_space["recognition"] = self.build_obs_space(
-                shape=(self.task.recognition_dim,), low=0, high=1
+                shape=(self.recognition_dim,), low=0.0, high=1.0
             )
+            vision_modalities.append("recognition")
         if "rgb" in self.output:
             observation_space["rgb"] = self.build_obs_space(
                 shape=(self.image_height, self.image_width, 3), low=0.0, high=1.0

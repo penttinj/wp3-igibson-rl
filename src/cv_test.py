@@ -1,18 +1,22 @@
 import time
 from PIL import Image
 from torchvision import transforms
+from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 import torch
 
-model = torch.hub.load(
-    "pytorch/vision:v0.12.0", "mobilenet_v2", weights="MobileNet_V2_Weights.DEFAULT"
-)
+#model = torch.hub.load(
+#    "pytorch/vision:v0.12.0", "mobilenet_v2", weights="MobileNet_V2_Weights.DEFAULT"
+#)
+model = mobilenet_v3_large(weights=MobileNet_V3_Large_Weights.DEFAULT)
+#model = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
 model.eval()
 print("devices:", torch.cuda.device_count())
 if torch.cuda.is_available():
     model.to("cuda")
     print("true true")
-img = Image.open("../assets/living_unsplash.jpg")
+img = Image.open("../assets/kitchen_unsplash.jpg")
 
+t0 = time.time_ns()
 preprocess = transforms.Compose(
     [
         transforms.Resize(256),
@@ -22,7 +26,7 @@ preprocess = transforms.Compose(
     ]
 )
 input_tensor = preprocess(img)
-t0 = time.time_ns()
+print("input_tensor=", input_tensor)
 input_batch = input_tensor.unsqueeze(0)  # create a mini-batch as expected by the model
 
 # move the input and model to GPU for speed if available

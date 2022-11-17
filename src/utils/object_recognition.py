@@ -1,14 +1,14 @@
 import time
 from torchvision import transforms
+from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 import torch
 import numpy as np
 
 
 class ObjectRecognition:
     def __init__(self) -> None:
-        self.model = torch.hub.load(
-            "pytorch/vision:v0.12.0", "mobilenet_v2", weights="MobileNet_V2_Weights.DEFAULT"
-        )
+        self.model = mobilenet_v3_large(weights=MobileNet_V3_Large_Weights.DEFAULT)
+        # self.model = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
         self.model.eval()
         if torch.cuda.is_available():
             self.model.to("cuda")

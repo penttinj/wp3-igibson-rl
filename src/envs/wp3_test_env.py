@@ -302,7 +302,7 @@ class Wp3TestEnv(BaseEnv):
         if "waypoints" in self.output:
             if isinstance(self.task, GoToObjectTask):
                 state["waypoints"] = np.array(self.task.get_polar_waypoints(self, self.num_waypoints))
-        assert False, "TODO: Implement object recognition based on rgb"
+        #assert False, "TODO: Implement object recognition based on rgb"
         return state
 
     def run_simulation(self):

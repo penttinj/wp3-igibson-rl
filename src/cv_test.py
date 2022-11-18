@@ -3,6 +3,7 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 import torch
+import json
 
 #model = torch.hub.load(
 #    "pytorch/vision:v0.12.0", "mobilenet_v2", weights="MobileNet_V2_Weights.DEFAULT"
@@ -15,18 +16,37 @@ if torch.cuda.is_available():
     model.to("cuda")
     print("true true")
 img = Image.open("../assets/kitchen_unsplash.jpg")
-
+with open("../assets/img.json",) as f:
+    data = json.load(f)
+import numpy as np
+kitch_arr = np.asarray(img)
+print("kitch arr dtype", kitch_arr.dtype)
+### print("data types=", kitch_arr)
+img_arr = np.array(data["foo"])
+print("img arr type before reshape", img_arr.dtype)
+img_arr = np.reshape(img_arr, (120, 160, 3))
+print("img arr type after reshape", img_arr.dtype)
+img_arr = np.int_(img_arr * 255).astype("uint8")
+### print("data==", img_arr)
+import sys
+### img = Image.fromarray(img_arr)
+### img.save("foobar.png", bitmap_format="png")
+img = img_arr
+#img = np.int_(img * 255).astype("uint8")
+#img = torch.tensor(img)
+#img = img.double()
+print("img datatype:", img.dtype)
 t0 = time.time_ns()
 preprocess = transforms.Compose(
     [
+        transforms.ToTensor(),
         transforms.Resize(256),
         transforms.CenterCrop(224),
-        transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 input_tensor = preprocess(img)
-print("input_tensor=", input_tensor)
+print("input_tensor shape=", input_tensor.shape)
 input_batch = input_tensor.unsqueeze(0)  # create a mini-batch as expected by the model
 
 # move the input and model to GPU for speed if available

@@ -104,7 +104,7 @@ scan_noise_rate: 0.0
 num_waypoints: 6
 
 # cv object recognition
-recognition_dim: 100
+recognition_dim: 1000
 
 # visual objects
 visible_target: false

@@ -1,4 +1,5 @@
 import time
+from typing import List, Type
 from torchvision import transforms
 from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 import torch
@@ -15,16 +16,17 @@ class ObjectRecognition:
             print("true true is cuda")
         self.preprocess = transforms.Compose(
             [
+                transforms.ToTensor(),
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
-                transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
-        print("Initialized MobileNetV2 model")
+        print("Initialized MobileNetV3 model")
 
     def classify(self, img: np.ndarray) -> torch.Tensor:
         t0 = time.time_ns()
+        img = np.int_(img * 255).astype("uint8")
         input_tensor = self.preprocess(img)
         input_batch = input_tensor.unsqueeze(0)  # create a mini-batch as expected by the model
 
@@ -38,3 +40,25 @@ class ObjectRecognition:
         t1 = time.time_ns()
 
         return probs
+
+    def serialize_img(self, img: np.ndarray):
+        RGBImg = List[List[List[float]]]
+        img_np = np.reshape(img, (3, 120, 160))
+        
+        with open("img.json", "w") as f:
+            img_: RGBImg = list(img_np)
+            img_[0] = list(img_[0])
+            img_[1] = list(img_[1])
+            img_[2] = list(img_[2])
+            f.write('{\n"img":')
+            f.write("[\n")
+            for channel in img_:
+                f.write("[\n")
+                for row in channel:
+                    f.write("[\n")
+                    print(*row, sep=",", file=f)
+                    f.write("],\n")
+                f.write("],\n")
+            f.write("]\n")
+            f.write("}")
+            

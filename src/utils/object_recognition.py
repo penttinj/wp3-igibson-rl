@@ -22,6 +22,9 @@ class ObjectRecognition:
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
+        # Read the categories
+        with open("../assets/imagenet_classes.txt", "r") as f:
+            self.categories = [s.strip() for s in f.readlines()]
         print("Initialized MobileNetV3 model")
 
     def classify(self, img: np.ndarray) -> torch.Tensor:
@@ -38,7 +41,11 @@ class ObjectRecognition:
         # output[0] == Tensor of shape 1000, with confidence scores over Imagenet's 1000 classes
         probs = torch.nn.functional.softmax(output[0], dim=0)
         t1 = time.time_ns()
-
+        # Show top categories per image
+        #top5_prob, top5_catid = torch.topk(probs, 5)
+        #for i in range(top5_prob.size(0)):
+        #    print(self.categories[top5_catid[i]], top5_prob[i].item())
+        #print("--------")
         return probs
 
     def serialize_img(self, img: np.ndarray):

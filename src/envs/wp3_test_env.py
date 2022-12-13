@@ -152,7 +152,7 @@ class Wp3TestEnv(BaseEnv):
         self.image_height = self.config.get("image_height", 128)
         self.num_waypoints: int = self.config.get("num_waypoints", 1)
         self.waypoints_dim: int = self.num_waypoints * 2 # n * 2 for x,y coords
-        self.recognition_dim: int = self.config.get("recognition_dim", 1000)
+        self.recognition_dim: int = self.config.get("recognition_dim", None)
         observation_space = OrderedDict()
         sensors = OrderedDict()
         vision_modalities = []

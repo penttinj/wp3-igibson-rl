@@ -40,6 +40,9 @@ class ObjectRecognition:
             output = self.model(input_batch)
         # output[0] == Tensor of shape 1000, with confidence scores over Imagenet's 1000 classes
         probs = torch.nn.functional.softmax(output[0], dim=0)
+        print("[object_recognition]probs.shape: torch.Tensor=", probs.shape)
+        probs = np.array(probs)
+        print("[object_recognition]probs.shape: np.array=", probs.shape)
         t1 = time.time_ns()
         # Show top categories per image
         #top5_prob, top5_catid = torch.topk(probs, 5)

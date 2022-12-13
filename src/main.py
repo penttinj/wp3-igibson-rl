@@ -85,7 +85,7 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         feature_size = 256
         for key, subspace in observation_space.spaces.items():
             if key in ["proprioception", "task_obs", "waypoints", "recognition"]:
-                print(f"CustomCombinedExtractor: {key}, {subspace.shape[0]=}")
+                print(f"CustomCombinedExtractor: {key}, {subspace.shape[0]=}, type={type(subspace)}")
                 extractors[key] = nn.Sequential(
                     nn.Linear(subspace.shape[0], feature_size), nn.ReLU()
                 )

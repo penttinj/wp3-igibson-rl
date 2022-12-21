@@ -31,7 +31,7 @@ from igibson.utils.utils import quatToXYZW
 log = logging.getLogger(__name__)
 
 
-class Wp3TestEnv(BaseEnv):
+class DynamicEnv(BaseEnv):
     """
     iGibson Environment (OpenAI Gym interface).
     """
@@ -62,7 +62,7 @@ class Wp3TestEnv(BaseEnv):
         :param use_pb_gui: concurrently display the interactive pybullet gui (for debugging)
         """
         print("SCENE_ID=", scene_id)
-        super(Wp3TestEnv, self).__init__(
+        super(DynamicEnv, self).__init__(
             config_file=config_file,
             scene_id=scene_id,
             mode=mode,
@@ -272,7 +272,7 @@ class Wp3TestEnv(BaseEnv):
         """
         Load environment.
         """
-        super(Wp3TestEnv, self).load()
+        super(DynamicEnv, self).load()
         self.load_task_setup()
         self.load_observation_space()
         self.load_action_space()
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    env = Wp3TestEnv(
+    env = DynamicEnv(
         config_file=args.config,
         mode=args.mode,
         action_timestep=1.0 / 10.0,

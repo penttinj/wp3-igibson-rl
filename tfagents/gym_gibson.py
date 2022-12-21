@@ -18,7 +18,7 @@ import gin
 
 from tf_agents.environments import gym_wrapper
 from tf_agents.environments import wrappers
-from envs.wp3_test_env import Wp3TestEnv
+from envs.dynamic_env import DynamicEnv
 import igibson
 
 
@@ -32,7 +32,7 @@ def load(config_file,
          gym_env_wrappers=(),
          env_wrappers=(),
          spec_dtype_map=None):
-    env = Wp3TestEnv(config_file=config_file,
+    env = DynamicEnv(config_file=config_file,
                      scene_id=model_id,
                      mode=env_mode,
                      action_timestep=action_timestep,

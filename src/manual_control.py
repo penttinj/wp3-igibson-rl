@@ -15,7 +15,7 @@ try:
     import gym
     import torch as th
     import torch.nn as nn
-    from envs.wp3_test_env import Wp3TestEnv
+    from envs.dynamic_env import DynamicEnv
     from igibson.utils.utils import parse_config
 
 except ModuleNotFoundError as e:
@@ -33,7 +33,7 @@ def log(s):
 
 def main(stdscr: window, config_path: str):
     stdscr.nodelay(True)
-    env = Wp3TestEnv(
+    env = DynamicEnv(
         config_file=config_path,
         mode="gui_interactive",
         action_timestep=1 / 10.0,

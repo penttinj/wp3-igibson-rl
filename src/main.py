@@ -11,7 +11,7 @@ from subprocess import run
 
 from igibson.utils.utils import parse_config
 
-from envs.wp3_test_env import Wp3TestEnv
+from envs.dynamic_env import DynamicEnv
 
 try:
     import gym
@@ -208,9 +208,9 @@ def main(
 
     # Function callback to create environments
     def make_env(rank: int, seed: int = 0, scenes: Union[List[str], None] = None) -> Callable:
-        def _init() -> Wp3TestEnv:
+        def _init() -> DynamicEnv:
             scene = None if scenes is None else scenes[rank % len(scenes)]
-            env = Wp3TestEnv(
+            env = DynamicEnv(
                 config_file=config_file,
                 scene_id=scene,
                 mode="headless",
@@ -233,7 +233,7 @@ def main(
         # Create a new environment for evaluation
         eval_env = SubprocVecEnv(
             [
-                lambda: Wp3TestEnv(
+                lambda: DynamicEnv(
                     config_file=config_file,
                     mode="headless",
                     action_timestep=1 / 10.0,
@@ -291,7 +291,7 @@ def main(
         logging.info("Eval only mode")
         logging.info(f"Using config {config_file}")
         logging.info(f"Using model {args.model}")
-        eval_env = Wp3TestEnv(
+        eval_env = DynamicEnv(
             config_file=config_file,
             mode="headless",
             action_timestep=1 / 10.0,

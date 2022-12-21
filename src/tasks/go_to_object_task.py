@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 from igibson.tasks.task_base import BaseTask
 import pybullet as p
 from igibson.scenes.igibson_indoor_scene import InteractiveIndoorScene
@@ -67,6 +68,11 @@ class GoToObjectTask(BaseTask):
             env, self.config.get("target_object", "003_cracker_box"), self.spawn_bounds
         )
         print(f"{self.goal_object=}")
+        clutter_object = self.load_object(env, "003_cracker_box")
+        err = self.land_object(env, clutter_object)
+        if err is not None:
+            print(err)
+
     def load_visualization(self, env):
         """
         Load visualization, such as initial and target position, shortest path, etc
@@ -97,7 +103,7 @@ class GoToObjectTask(BaseTask):
             print("Importing visible objects")
             env.simulator.import_object(self.initial_pos_vis_obj)
             env.simulator.import_object(self.target_pos_vis_obj)
-        #else:
+        # else:
         #    self.initial_pos_vis_obj.load(env.simulator)
         #    self.target_pos_vis_obj.load(env.simulator)
 
@@ -162,21 +168,30 @@ class GoToObjectTask(BaseTask):
         elif self.reward_type == "geodesic":
             return self.get_geodesic_potential(env)
 
-    def load_goal_object(self, env, obj_url, bounds=None):
+    def load_object(self, env, obj_url: str):
+        """
+        Load a YCJObject into simulator
+        """
+        obj = YCBObject(obj_url)
+        env.simulator.import_object(obj)
+        return obj
+
+    def load_goal_object(self, env, obj_url: str, bounds: Union[None, np.ndarray] = None):
         """
         Load the desired object at a semi-random position
 
             bounds: Array of [[x0, y0],[x1, y1]] representing the 2d area where the object is allowed to spawn
         """
-        obj = YCBObject(obj_url)
-        #obj2 = YCBObject("005_tomato_soup_can")
-        env.simulator.import_object(obj)
-        #env.simulator.import_object(obj2)
+        #obj = YCBObject(obj_url)
+        # obj2 = YCBObject("005_tomato_soup_can")
+        #env.simulator.import_object(obj)
+        obj = self.load_object(env, obj_url)
+        # env.simulator.import_object(obj2)
         self.reset_goal(env, obj, bounds)
 
         return obj
 
-    def reset_goal(self, env, obj, bounds=None, floor=0):
+    def reset_goal(self, env, obj, bounds: Union[None, list] = None, floor=0):
         """
         Attempt to place the goal object in a random position within the area.
         """
@@ -218,6 +233,31 @@ class GoToObjectTask(BaseTask):
         p.removeState(state_id)
         env.land(obj, pos, orn)
         self.target_pos = np.array(pos)
+
+    def land_object(self, env, obj, floor: int = 0):
+        """
+        Land object in a random valid position
+        """
+        reset_success = False
+        max_trials = 100
+        pos = ()
+        orn = np.array([0, 0, np.random.uniform(0, np.pi * 2)])
+        state_id = p.saveState()
+        for _ in range(max_trials):
+            _, pos = env.scene.get_random_point(floor=floor)
+            # Test that the object can fit in the position
+            reset_success = env.test_valid_position(obj, pos, orn)
+            p.restoreState(state_id)
+            if reset_success:
+                break
+
+        p.removeState(state_id)
+        env.land(obj, pos, orn)
+        if not reset_success:
+            logging.warning("WARNING: Failed to land object %s without collision", obj)
+            return f"Failed to land object {obj} without collision"
+        return None
+
 
     def sample_initial_pose(self, env):
         """
